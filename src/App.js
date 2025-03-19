@@ -1,20 +1,17 @@
-import { AppSidebar } from "./components/AppSidebar"
-import { Separator } from "./components/ui/separator"
-import {
-  SidebarProvider,
-  SidebarTrigger,
-} from "./components/ui/sidebar"
+import { AppSidebar } from "./components/Sidebar/AppSidebar"
+import { SidebarProvider } from "./components/ui/sidebar"
+import Header from "./components/Header/Header"
 
 const App = () => {
   return (
     <SidebarProvider>
-      <div className="flex h-screen">
-        <AppSidebar />
-        <main className="flex-1">
-          <header className="sticky top-0 flex shrink-0 items-center gap-2 border-b bg-background p-4">
-            <SidebarTrigger className="-ml-1" />
-          </header>
-        </main>
+      <div className="flex flex-col min-h-screen w-full">
+        <Header />
+        <div className="flex flex-1 relative">
+          <AppSidebar />
+          <main className="flex-1">
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   )

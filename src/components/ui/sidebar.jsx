@@ -136,15 +136,16 @@ Sidebar.displayName = "Sidebar"
 
 const SidebarContent = React.forwardRef(({ className, ...props }, ref) => {
   return (
-    <div
+    <ScrollArea
       ref={ref}
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-2",
+        "h-[calc(100vh-8rem)] flex-grow",
         "group-data-[state=collapsed]:opacity-0 group-data-[state=collapsed]:pointer-events-none",
         className
       )}
-      {...props} />
+      {...props} 
+    />
   )
 })
 SidebarContent.displayName = "SidebarContent"

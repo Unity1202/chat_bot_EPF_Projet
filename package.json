@@ -20,9 +20,11 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.479.0",
+    "next-themes": "^0.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
+    "shadcn-ui": "^0.9.5",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
     "web-vitals": "^2.1.4"
@@ -53,9 +55,12 @@
   },
   "devDependencies": {
     "@shadcn/ui": "^0.0.4",
+    "@tailwindcss/postcss7-compat": "^2.2.17",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.31",
-    "tailwindcss": "^3.4.17"
+    "postcss-flexbugs-fixes": "^5.0.2",
+    "postcss-preset-env": "^9.3.0",
+    "tailwindcss": "^3.3.0"
   }
 }
