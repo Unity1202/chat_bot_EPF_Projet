@@ -8,7 +8,7 @@ export function ThemeProvider({ children }) {
     const [theme, setTheme] = useState('light');
 
     useEffect(() => {
-        // Appliquer la classe dark au body quand nécessaire
+        // Applique la classe dark au body quand nécessaire
         document.documentElement.classList.toggle('dark', theme === 'dark');
     }, [theme]);
 
