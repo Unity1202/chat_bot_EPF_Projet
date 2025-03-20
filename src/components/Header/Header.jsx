@@ -2,6 +2,7 @@ import React from 'react';
 import LogoClient from './LogoClient';
 import LogoJuridica from './LogoJuridica';
 import LogoModeSombre from './LogoModeSombre';
+import UserAvatar from './UserAvatar';
 import { cn } from "../../lib/utils";
 
 const Header = ({ className }) => {
@@ -17,7 +18,10 @@ const Header = ({ className }) => {
             <div className="absolute left-1/2 transform -translate-x-1/2">
                 <LogoClient />
             </div>
-            <LogoModeSombre />
+            <div className="flex items-center gap-2 mr-4">
+                <LogoModeSombre />
+                <UserAvatar />
+            </div>
         </header>
     );
 };
