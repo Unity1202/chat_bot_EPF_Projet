@@ -7,7 +7,8 @@ import { cn } from "../../lib/utils";
 const Header = ({ className }) => {
     return (
         <header className={cn(
-            "sticky top-0 z-50 flex h-16 w-screen shrink-0 items-center justify-between bg-[#16698C]",
+            "sticky top-0 z-50 flex h-16 items-center justify-between bg-[#16698C]",
+            "md:ml-[calc(16rem+0.5rem)] md:mr-2 md:mt-2 md:w-[calc(100%-16.5rem-0.5rem)] md:rounded-2xl",
             className
         )}>
             <div className="flex items-center">

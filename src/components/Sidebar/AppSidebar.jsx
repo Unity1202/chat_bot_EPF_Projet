@@ -1,8 +1,7 @@
 import React from "react";
 import {
   Sidebar,
-  SidebarContent,
-  SidebarTrigger
+  SidebarContent
 } from "../ui/sidebar";
 import SidebarHeader from "./SidebarHeader";
 import ConversationList from "./ConversationList";
@@ -62,18 +61,15 @@ const conversations = [
 
 export function AppSidebar() {
   return (
-    <div className="relative">
-      <Sidebar className="mt-16">
-        <SidebarContent className="flex flex-col h-full">
-          <div className="sticky top-0 z-10 bg-background">
-            <SidebarHeader />
-          </div>
-          <ScrollArea className="flex-1">
-            <ConversationList conversations={conversations} />
-          </ScrollArea>
-        </SidebarContent>
-      </Sidebar>
-      <SidebarTrigger className="absolute -right-10 z-50 bg-background border shadow-sm rounded-r-md" />
-    </div>
+    <Sidebar className="mt-16">
+      <SidebarContent className="flex flex-col h-full">
+        <div className="sticky top-0 z-10 bg-background">
+          <SidebarHeader />
+        </div>
+        <ScrollArea className="flex-1">
+          <ConversationList conversations={conversations} />
+        </ScrollArea>
+      </SidebarContent>
+    </Sidebar>
   );
 } 
