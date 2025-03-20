@@ -1,6 +1,7 @@
 import { AppSidebar } from "./components/Sidebar/AppSidebar"
 import { SidebarProvider } from "./components/ui/sidebar"
 import Header from "./components/Header/Header"
+import AppChat from "./components/Chat/AppChat" // Correction de l'import
 
 const App = () => {
   return (
@@ -10,6 +11,7 @@ const App = () => {
         <div className="flex flex-1 relative">
           <AppSidebar />
           <main className="flex-1">
+            <AppChat />
           </main>
         </div>
       </div>
