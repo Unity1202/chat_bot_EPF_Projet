@@ -1,28 +1,54 @@
-import { useState } from "react";
+import { useState, useRef } from 'react';
 
-export default function InputBox({ sendMessage }) {
-  const [text, setText] = useState("");
+export default function InputBox({ sendMessage, isSidebarOpen, onFileUpload }) {
+  const [message, setMessage] = useState('');
+  const fileInputRef = useRef(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (text.trim()) {
-      sendMessage(text);
-      setText("");
+    if (message.trim()) {
+      sendMessage(message);
+      setMessage('');
+    }
+  };
+
+  const handleFileClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files.length > 0) {
+      onFileUpload(e.target.files);
+      e.target.value = null; // Reset input
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-background">
+      <button 
+        type="button" 
+        onClick={handleFileClick}
+        className="text-background hover:text-gray-700 text-xl"
+      >
+        📎
+      </button>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+        multiple
+      />
       <input
         type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Posez votre question..."
-        className="flex-1 p-2 border rounded-lg focus:outline-none focus:border-[#16698C]"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Tapez votre message ici..."
+        className="flex-1 p-2 border rounded-lg bg-background text-flex-1"
       />
       <button 
         type="submit" 
-        className="px-4 py-2 bg-[#16698C] text-white rounded-lg hover:bg-[#145879] transition-colors"
+        className="bg-[#16698C] text-white px-4 py-2 rounded-lg hover:bg-[#16ACCD]"
       >
         Envoyer
       </button>

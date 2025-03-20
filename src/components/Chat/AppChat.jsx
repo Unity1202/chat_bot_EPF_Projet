@@ -17,13 +17,21 @@ export default function AppChat({ isSidebarOpen }) {
     }, 1000);
   };
 
-  return (
-    <div className={`w-[calc(100vw-${isSidebarOpen ? '16rem' : '0px'})] transition-all duration-300 h-[calc(100vh-32px)] flex flex-col overflow-hidden`}>
-      {/* En-tête */}
-      <div className="h-16 shrink-0 bg-[#16698C] text-white text-center text-lg font-bold flex items-center justify-center">
-        Assistant Juridique
-      </div>
+  const handleFileUpload = (files) => {
+    // Pour chaque fichier, créer un message avec le nom du fichier
+    Array.from(files).forEach(file => {
+      const newMessage = { 
+        id: messages.length + 1, 
+        text: `Pièce jointe : ${file.name}`,
+        sender: "user",
+        file: file
+      };
+      setMessages([...messages, newMessage]);
+    });
+  };
 
+  return (
+    <div className="fixed right-0 top-0 w-[calc(100%-16rem)] h-screen flex flex-col overflow-hidden">
       {/* ChatBox */}
       <div className="flex-1 min-h-0">
         <div className="h-[calc(100vh-8rem)] overflow-y-auto p-4">
@@ -32,8 +40,12 @@ export default function AppChat({ isSidebarOpen }) {
       </div>
 
       {/* Barre d'Entrée */}
-      <div className="h-16 shrink-0 bg-white border-t p-4">
-        <InputBox sendMessage={sendMessage} isSidebarOpen={isSidebarOpen} />
+      <div className="h-16 shrink-0 bg-background border-t p-4">
+        <InputBox 
+          sendMessage={sendMessage} 
+          isSidebarOpen={isSidebarOpen} 
+          onFileUpload={handleFileUpload}
+        />
       </div>
     </div>
   );

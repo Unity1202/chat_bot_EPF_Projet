@@ -14,7 +14,7 @@ const SidebarHeader = () => {
         <Button 
           variant="default" 
           size="sm" 
-          className="h-7 px-2 bg-[#16698C] hover:bg-[#16698C]/90 text-xs font-medium rounded-md flex items-center gap-1"
+          className="h-7 px-2 bg-[#16698C] hover:bg-[#16ACCD]/90 text-xs text-white font-medium rounded-md flex items-center gap-1"
         >
           <Plus className="h-4 w-4" />
           Nouveau Chat
