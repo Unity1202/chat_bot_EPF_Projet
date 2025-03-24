@@ -1,3 +1,8 @@
+// hook pour détecter si l'appareil est mobile (largeur < 768px)
+// utilise matchMedia pour détecter les changements de taille d'écran en temps réel
+// retourne true si l'écran est en mode mobile, false sinon
+// exemple: const isMobile = useIsMobile()
+
 import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768
@@ -16,4 +21,4 @@ export function useIsMobile() {
   }, [])
 
   return !!isMobile
-}
+} 

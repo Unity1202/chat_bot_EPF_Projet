@@ -1,6 +1,10 @@
+// composant principal de l'application qui définit la structure de base
+// organise les composants majeurs : header, sidebar et zone de chat
+// utilise flexbox pour la mise en page responsive
+
 import { Sidebar } from "./components/Sidebar/Sidebar"
 import Header from "./components/Header/Header"
-import AppChat from "./components/Chat/AppChat" // Correction de l'import
+import AppChat from "./components/Chat/AppChat"
 
 const App = () => {
   return (

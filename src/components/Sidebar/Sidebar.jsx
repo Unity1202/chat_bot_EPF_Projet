@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Sidebar as UISidebar,
   SidebarContent
@@ -6,6 +6,8 @@ import {
 import SidebarHeader from "./SidebarHeader";
 import ConversationList from "./ConversationList";
 import { ScrollArea } from "../ui/scroll-area";
+import { useSearch } from "../../hooks/useSearch";
+import { useFilter } from "../../hooks/useFilter";
 
 // conversations fictives pour tester le formatage
 const conversations = [
@@ -68,13 +70,18 @@ const conversations = [
 ];
 
 export function Sidebar() {
-  const [selectedFilter, setSelectedFilter] = useState('all');
+  const { searchQuery, setSearchQuery, filteredItems: searchFilteredItems } = useSearch(conversations);
+  const { selectedFilter, setSelectedFilter, filteredItems: categoryFilteredItems } = useFilter(searchFilteredItems);
 
   return (
     <UISidebar className="mt-16">
       <SidebarContent className="flex flex-col h-full">
         <div className="sticky top-0 z-10 bg-background">
-          <SidebarHeader selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter} />
+          <SidebarHeader 
+            selectedFilter={selectedFilter} 
+            setSelectedFilter={setSelectedFilter}
+            onSearch={setSearchQuery}
+          />
         </div>
         <div className="flex-1 overflow-hidden group">
           <div className="h-full">
@@ -83,7 +90,10 @@ export function Sidebar() {
               className="transition-opacity duration-300"
               type="hover"
             >
-              <ConversationList conversations={conversations} selectedFilter={selectedFilter} />
+              <ConversationList 
+                conversations={categoryFilteredItems}
+                searchQuery={searchQuery}
+              />
             </ScrollArea>
           </div>
         </div>

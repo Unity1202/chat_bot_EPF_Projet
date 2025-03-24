@@ -1,6 +1,13 @@
+// point d'entrée principal de l'application react
+// configure le provider de thème pour gérer le mode clair/sombre
+// monte l'application dans l'élément root du dom
+// active le mode strict de react pour détecter les problèmes potentiels
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
+import './styles/globals.css';
+import './styles/fonts.css';
+import './styles/components.css';
 import App from './App';
 import { ThemeProvider } from './components/Header/theme-provider';
 
