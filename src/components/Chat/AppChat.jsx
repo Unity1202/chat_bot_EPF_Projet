@@ -1,20 +1,52 @@
 import { useState } from "react";
 import ChatBox from "./ChatBox";
 import InputBox from "./InputBox";
+import { sendQuery } from "../../Services/chatService";
 
 export default function AppChat({ isSidebarOpen }) {
   const [messages, setMessages] = useState([
-    { id: 1, text: "Bonjour, je suis votre assistant juridique spécialisé pour les Junior-Entreprises. Comment puis-je vous aider aujourd'hui ?", sender: "bot" }
   ]);
+  const [conversationId, setConversationId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const sendMessage = (text) => {
+  const sendMessage = async (text) => {
+    // Ajouter le message de l'utilisateur
     const newMessage = { id: messages.length + 1, text, sender: "user" };
     setMessages([...messages, newMessage]);
-
-    setTimeout(() => {
-      const botReply = { id: messages.length + 2, text: "Je vais chercher cette information pour vous.", sender: "bot" };
+    
+    // Indiquer que nous sommes en train de charger
+    setIsLoading(true);
+    
+    try {
+      // Envoyer la requête au backend
+      const response = await sendQuery(text, conversationId);
+      
+      // Sauvegarder l'ID de conversation pour les futurs échanges
+      if (response.conversation_id) {
+        setConversationId(response.conversation_id);
+      }
+      
+      // Ajouter la réponse du bot
+      const botReply = { 
+        id: messages.length + 2, 
+        text: response.answer, 
+        sender: "bot",
+        sources: response.sources || []
+      };
+      
       setMessages((prev) => [...prev, botReply]);
-    }, 1000);
+    } catch (error) {
+      // Gérer les erreurs
+      const errorMessage = { 
+        id: messages.length + 2, 
+        text: "Désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer plus tard.", 
+        sender: "bot",
+        isError: true
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleFileUpload = (files) => {
@@ -35,7 +67,7 @@ export default function AppChat({ isSidebarOpen }) {
       {/* ChatBox */}
       <div className="flex-1 min-h-0">
         <div className="h-[calc(100vh-8rem)] overflow-y-auto p-4">
-          <ChatBox messages={messages} />
+          <ChatBox messages={messages} isLoading={isLoading} />
         </div>
       </div>
 
@@ -43,11 +75,11 @@ export default function AppChat({ isSidebarOpen }) {
       <div className="h-16 shrink-0 bg-background border-t p-4">
         <InputBox 
           sendMessage={sendMessage} 
-          isSidebarOpen={isSidebarOpen} 
+          isSidebarOpen={isSidebarOpen}
           onFileUpload={handleFileUpload}
+          isLoading={isLoading}
         />
       </div>
     </div>
   );
-  
 }

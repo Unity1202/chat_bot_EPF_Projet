@@ -1,12 +1,12 @@
 import { useState, useRef } from 'react';
 
-export default function InputBox({ sendMessage, isSidebarOpen, onFileUpload }) {
+export default function InputBox({ sendMessage, isSidebarOpen, onFileUpload, isLoading }) {
   const [message, setMessage] = useState('');
   const fileInputRef = useRef(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (message.trim()) {
+    if (message.trim() && !isLoading) {
       sendMessage(message);
       setMessage('');
     }
@@ -28,7 +28,8 @@ export default function InputBox({ sendMessage, isSidebarOpen, onFileUpload }) {
       <button 
         type="button" 
         onClick={handleFileClick}
-        className="text-background hover:text-gray-700 text-xl"
+        disabled={isLoading}
+        className={`text-background hover:text-gray-700 text-xl ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         📎
       </button>
@@ -38,19 +39,26 @@ export default function InputBox({ sendMessage, isSidebarOpen, onFileUpload }) {
         onChange={handleFileChange}
         className="hidden"
         multiple
+        disabled={isLoading}
       />
       <input
         type="text"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="Tapez votre message ici..."
-        className="flex-1 p-2 border rounded-lg bg-background text-flex-1"
+        placeholder={isLoading ? "En attente de réponse..." : "Tapez votre message ici..."}
+        disabled={isLoading}
+        className="flex-1 p-2 border rounded-lg bg-background text-flex-1 disabled:opacity-70"
       />
       <button 
         type="submit" 
-        className="bg-[#16698C] text-white px-4 py-2 rounded-lg hover:bg-[#16ACCD]"
+        disabled={isLoading || !message.trim()}
+        className={`bg-[#16698C] text-white px-4 py-2 rounded-lg ${
+          isLoading || !message.trim() 
+            ? 'opacity-50 cursor-not-allowed' 
+            : 'hover:bg-[#16ACCD]'
+        }`}
       >
-        Envoyer
+        {isLoading ? 'Envoi...' : 'Envoyer'}
       </button>
     </form>
   );
