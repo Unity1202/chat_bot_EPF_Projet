@@ -28,7 +28,7 @@ export function Sidebar({ onConversationSelect, refreshTrigger = 0 }) {
       if (isAuthenticated) {
         setLoading(true);
         setError(null);
-        
+  
         try {
           const historicConversations = await getConversationHistory();
           setConversations(historicConversations);
@@ -39,26 +39,26 @@ export function Sidebar({ onConversationSelect, refreshTrigger = 0 }) {
           setLoading(false);
         }
       } else {
-        // Si non authentifié, réinitialiser la liste
         setConversations([]);
       }
     };
-    
+  
     loadConversations();
-  }, [isAuthenticated, refreshTrigger]); // Ajouter refreshTrigger comme dépendance
+  }, [isAuthenticated, refreshTrigger]);// Ajouter refreshTrigger comme dépendance
 
   // Fonction pour démarrer une nouvelle conversation
-  const handleNewChat = async () => {
-    try {
-      const newConversation = await createNewConversation();
-      if (onConversationSelect) {
-        onConversationSelect(newConversation.conversation_id); // Sélectionner la nouvelle conversation
-      }
-      console.log(newConversation.greeting); // Afficher le message d'accueil dans la console
-    } catch (error) {
-      console.error("Erreur lors de la création d'une nouvelle conversation :", error);
+const handleNewChat = async () => {
+  try {
+    const newConversation = await createNewConversation();
+    console.log("Nouvelle conversation créée avec ID:", newConversation.conversation_id);
+    
+    if (newConversation.conversation_id && onConversationSelect) {
+      onConversationSelect(newConversation.conversation_id);
     }
-  };
+  } catch (error) {
+    console.error("Erreur lors de la création d'une nouvelle conversation :", error);
+  }
+};
 
   // Fonction pour sélectionner une conversation existante
   const handleSelectConversation = (conversationId) => {

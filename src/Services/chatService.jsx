@@ -8,47 +8,47 @@ const API_URL = 'http://localhost:8000/api/chat';
 /**
  * Envoie une requête au backend et récupère la réponse
  * @param {string} query - La question de l'utilisateur
- * @param {string} conversationId - L'ID de conversation optionnel pour continuer une conversation existante
- * @returns {Promise} - La promesse contenant la réponse du backend
+ * @param {string|null} conversationId - L'ID de conversation pour continuer une conversation existante
+ * @returns {Promise<Object>} - La réponse du backend
  */
 export const sendQuery = async (query, conversationId = null) => {
   try {
     const payload = { query };
-    
+
     // Préparer les en-têtes standard pour toutes les requêtes
     const headers = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
     };
 
     let url;
-    // Si nous avons un ID de conversation, utiliser l'endpoint "continue"
+    // Si un ID de conversation est fourni, utiliser l'endpoint pour continuer la conversation
     if (conversationId) {
       url = `${API_URL}/continue/${conversationId}`;
     } else {
-      // Sinon, utiliser l'endpoint de base pour une nouvelle conversation
+      // Sinon, utiliser l'endpoint pour démarrer une nouvelle conversation
       url = `${API_URL}/query`;
     }
-    
+
     console.log(`Envoi de requête à ${url}:`, payload);
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers,
       credentials: 'include', // Important pour envoyer les cookies
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.detail || `Erreur API: ${response.status}`);
     }
-    
+
     const data = await response.json();
     console.log("Réponse du serveur:", data);
     return data;
   } catch (error) {
-    console.error('Erreur lors de l\'envoi de la requête:', error);
+    console.error("Erreur lors de l'envoi de la requête:", error);
     throw error;
   }
 };
@@ -167,45 +167,90 @@ export const getConversationById = async (conversationId) => {
       return null;
     }
     
-    // Utiliser l'endpoint d'historique de conversation avec l'ID spécifique
-    const response = await fetch(`${API_URL}/history/${conversationId}`, {
-      method: 'GET',
-      credentials: 'include', // Important pour envoyer les cookies
-      headers: {
-        'Accept': 'application/json'
+    try {
+      // Utiliser l'endpoint d'historique de conversation avec l'ID spécifique
+      const response = await fetch(`${API_URL}/history/${conversationId}`, {
+        method: 'GET',
+        credentials: 'include', // Important pour envoyer les cookies
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      // Pour une nouvelle conversation, l'historique peut ne pas exister encore
+      if (response.status === 404) {
+        console.log(`Conversation ${conversationId} n'a pas encore d'historique.`);
+        
+        // Récupérer les informations générales de la conversation
+        const conversationInfo = await getConversationMetadata(conversationId);
+        
+        // Retourner une conversation vide mais valide avec l'ID
+        return {
+          id: conversationId,
+          title: conversationInfo?.title || `Conversation #${conversationId.substring(0, 8)}...`,
+          category: assignCategory(conversationInfo?.category || 'other'),
+          messages: [],
+          conversationId: conversationId
+        };
       }
-    });
-    
-    if (!response.ok) {
-      console.error(`Erreur API (${response.status}):`, await response.text());
-      throw new Error(`Erreur API: ${response.status}`);
+      
+      if (!response.ok) {
+        console.error(`Erreur API (${response.status}):`, await response.text());
+        throw new Error(`Erreur API: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Historique de conversation récupéré:", data);
+      
+      // Transformer les données pour correspondre à notre structure d'affichage
+      // Récupérer d'abord les informations générales de la conversation
+      const conversationInfo = await getConversationMetadata(conversationId);
+      
+      // Transformer l'historique en format attendu par notre application
+      return {
+        id: conversationId,
+        title: conversationInfo?.title || `Conversation #${conversationId.substring(0, 8)}...`,
+        category: assignCategory(conversationInfo?.category || 'other'),
+        messages: (data.history || []).map((msg, index) => ({
+          id: msg.id || `msg-${index}-${Date.now()}`, // Assurer un ID unique
+          text: msg.content || msg.message, // Accepter les deux formats possibles
+          sender: msg.role === 'user' ? 'user' : 'bot',
+          timestamp: msg.timestamp || new Date().toISOString(),
+          sources: msg.sources || []
+        })),
+        conversationId: conversationId
+      };
+    } catch (error) {
+      if (error.message.includes('404')) {
+        console.log(`Conversation ${conversationId} n'a pas encore d'historique.`);
+        
+        // Récupérer les informations générales de la conversation
+        const conversationInfo = await getConversationMetadata(conversationId);
+        
+        // Retourner une conversation vide mais valide avec l'ID
+        return {
+          id: conversationId,
+          title: conversationInfo?.title || `Conversation #${conversationId.substring(0, 8)}...`,
+          category: assignCategory(conversationInfo?.category || 'other'),
+          messages: [],
+          conversationId: conversationId
+        };
+      } else {
+        throw error;
+      }
     }
-    
-    const data = await response.json();
-    console.log("Historique de conversation récupéré:", data);
-    
-    // Transformer les données pour correspondre à notre structure d'affichage
-    // Récupérer d'abord les informations générales de la conversation
-    const conversationInfo = await getConversationMetadata(conversationId);
-    
-    // Transformer l'historique en format attendu par notre application
-    return {
-      id: conversationId,
-      title: conversationInfo?.title || `Conversation #${conversationId.substring(0, 8)}...`,
-      category: assignCategory(conversationInfo?.category || 'other'),
-      messages: (data.history || []).map((msg, index) => ({
-        id: msg.id || index,
-        text: msg.content || msg.message, // Accepter les deux formats possibles
-        sender: msg.role === 'user' ? 'user' : 'bot',
-        timestamp: msg.timestamp || new Date().toISOString(),
-        sources: msg.sources || []
-      })),
-      conversationId: conversationId
-    };
-    
   } catch (error) {
     console.error('Erreur lors de la récupération de la conversation:', error);
-    return null;
+    
+    // Même en cas d'erreur, retourner un objet valide avec l'ID de conversation
+    // pour éviter de perdre la référence à la conversation en cours
+    return {
+      id: conversationId,
+      title: `Conversation #${conversationId.substring(0, 8)}...`,
+      category: 'other',
+      messages: [],
+      conversationId: conversationId
+    };
   }
 };
 
@@ -312,12 +357,11 @@ export const getUserStatistics = async () => {
  */
 export const createNewConversation = async () => {
   try {
-    const response = await fetch('http://localhost:8000/api/chat/new-conversation', {
+    const response = await fetch(`${API_URL}/new-conversation`, {
       method: 'POST',
       credentials: 'include', // Inclure les cookies pour l'authentification
       headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
       },
     });
 
@@ -328,6 +372,12 @@ export const createNewConversation = async () => {
 
     const data = await response.json();
     console.log("Nouvelle conversation créée :", data);
+    
+    // S'assurer que l'ID de conversation est disponible
+    if (!data.conversation_id) {
+      throw new Error("ID de conversation non trouvé dans la réponse");
+    }
+    
     return data;
   } catch (error) {
     console.error("Erreur lors de la création d'une nouvelle conversation :", error);

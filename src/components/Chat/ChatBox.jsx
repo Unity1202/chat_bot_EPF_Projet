@@ -32,13 +32,7 @@ export default function ChatBox({ messages, isLoading, conversationId, onDeleteC
       {/* Actions flottantes en haut à droite si une conversation est active */}
       {conversationId && messages.length > 0 && (
         <div className="absolute top-2 right-2 flex gap-2">
-          <button
-            onClick={handleDeleteConversation}
-            className="p-2 rounded-full bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 transition-colors"
-            title="Supprimer cette conversation"
-          >
-            <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
-          </button>
+          
         </div>
       )}
       

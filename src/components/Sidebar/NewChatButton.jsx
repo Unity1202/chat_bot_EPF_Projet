@@ -21,8 +21,9 @@ const NewChatButton = ({ onClick }) => {
     <Button 
       onClick={handleClick}
       disabled={isLoading}
-      variant="outline"
-      className="flex items-center justify-center gap-2 w-full"
+      size="sm" 
+      variant="default"
+      className="h-7 px-2 bg-[#16698C] hover:bg-[#16ACCD]/90 text-xs text-white font-medium md:rounded-2xl flex items-center gap-1"
     >
       <Plus className="h-4 w-4" /> {/* Utilisez Plus ici */}
       {isLoading ? 'Création...' : 'Nouvelle conversation'}
