@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Sidebar as UISidebar,
   SidebarContent
@@ -6,72 +6,66 @@ import {
 import SidebarHeader from "./SidebarHeader";
 import ConversationList from "./ConversationList";
 import { ScrollArea } from "../ui/scroll-area";
+import { getConversationHistory } from "../../Services/chatService";
+import { useAuth } from "../../contexts/AuthContext";
 import { useSearch } from "../../hooks/useSearch";
 import { useFilter } from "../../hooks/useFilter";
+import { createNewConversation } from "../../Services/chatService";
 
-// conversations fictives pour tester le formatage
-const conversations = [
-  {
-    id: 1,
-    title: "Conversation d'aujourd'hui",
-    preview: "Test du formatage pour aujourd'hui",
-    date: new Date().toISOString(),
-    category: 'treasury'
-  },
-  {
-    id: 2,
-    title: "Conversation d'hier",
-    preview: "Test du formatage pour hier",
-    date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    category: 'organisational'
-  },
-  {
-    id: 3,
-    title: "Conversation d'il y a 3 jours",
-    preview: "Test du formatage pour il y a 3 jours",
-    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'other'
-  },
-  {
-    id: 4,
-    title: "Conversation de la semaine dernière",
-    preview: "Test du formatage pour la semaine dernière",
-    date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'treasury'
-  },
-  {
-    id: 5,
-    title: "Conversation de ce mois",
-    preview: "Test du formatage pour ce mois",
-    date: "2025-03-05T10:30:00.000Z",
-    category: 'organisational'
-  },
-  {
-    id: 6,
-    title: "Conversation du mois dernier",
-    preview: "Test du formatage pour le mois dernier",
-    date: "2025-02-15T10:30:00.000Z",
-    category: 'other'
-  },
-  {
-    id: 7,
-    title: "Conversation de janvier",
-    preview: "Test du formatage pour un mois spécifique",
-    date: "2025-01-15T10:30:00.000Z",
-    category: 'treasury'
-  },
-  {
-    id: 8,
-    title: "Conversation de l'année dernière",
-    preview: "Test du formatage pour l'année dernière",
-    date: "2024-12-25T10:30:00.000Z",
-    category: 'organisational'
-  }
-];
 
-export function Sidebar() {
+export function Sidebar({ onConversationSelect, refreshTrigger = 0 }) {
+  const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const { isAuthenticated } = useAuth();
+  
   const { searchQuery, setSearchQuery, filteredItems: searchFilteredItems } = useSearch(conversations);
   const { selectedFilter, setSelectedFilter, filteredItems: categoryFilteredItems } = useFilter(searchFilteredItems);
+
+  // Charger les conversations lorsque l'utilisateur est connecté ou quand refreshTrigger change
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (isAuthenticated) {
+        setLoading(true);
+        setError(null);
+        
+        try {
+          const historicConversations = await getConversationHistory();
+          setConversations(historicConversations);
+        } catch (error) {
+          console.error("Erreur lors du chargement des conversations :", error);
+          setError("Impossible de charger l'historique des conversations");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Si non authentifié, réinitialiser la liste
+        setConversations([]);
+      }
+    };
+    
+    loadConversations();
+  }, [isAuthenticated, refreshTrigger]); // Ajouter refreshTrigger comme dépendance
+
+  // Fonction pour démarrer une nouvelle conversation
+  const handleNewChat = async () => {
+    try {
+      const newConversation = await createNewConversation();
+      if (onConversationSelect) {
+        onConversationSelect(newConversation.conversation_id); // Sélectionner la nouvelle conversation
+      }
+      console.log(newConversation.greeting); // Afficher le message d'accueil dans la console
+    } catch (error) {
+      console.error("Erreur lors de la création d'une nouvelle conversation :", error);
+    }
+  };
+
+  // Fonction pour sélectionner une conversation existante
+  const handleSelectConversation = (conversationId) => {
+    if (onConversationSelect) {
+      onConversationSelect(conversationId);
+    }
+  };
 
   return (
     <UISidebar className="mt-16">
@@ -81,6 +75,7 @@ export function Sidebar() {
             selectedFilter={selectedFilter} 
             setSelectedFilter={setSelectedFilter}
             onSearch={setSearchQuery}
+            onNewChat={handleNewChat}
           />
         </div>
         <div className="flex-1 overflow-hidden group">
@@ -90,14 +85,31 @@ export function Sidebar() {
               className="transition-opacity duration-300"
               type="hover"
             >
-              <ConversationList 
-                conversations={categoryFilteredItems}
-                searchQuery={searchQuery}
-              />
+              {loading ? (
+                <div className="flex justify-center items-center p-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#16698C]"></div>
+                </div>
+              ) : error ? (
+                <div className="p-4 text-center text-red-500 text-sm">
+                  {error}
+                </div>
+              ) : conversations.length === 0 ? (
+                <div className="p-4 text-center text-gray-400 text-sm">
+                  {isAuthenticated 
+                    ? "Aucune conversation trouvée. Commencez une nouvelle conversation !" 
+                    : "Connectez-vous pour voir votre historique de conversations"}
+                </div>
+              ) : (
+                <ConversationList 
+                  conversations={categoryFilteredItems}
+                  searchQuery={searchQuery}
+                  onSelectConversation={handleSelectConversation}
+                />
+              )}
             </ScrollArea>
           </div>
         </div>
       </SidebarContent>
     </UISidebar>
   );
-} 
+}

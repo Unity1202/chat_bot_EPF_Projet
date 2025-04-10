@@ -4,8 +4,11 @@ import { formatConversationDate } from '../../lib/dateUtils';
 import { highlightText } from '../../hooks/useSearch';
 import { categoryColors, categoryLabels } from '../../hooks/useFilter';
 
-const ConversationItem = ({ title, preview, date, category, searchQuery = '' }) => (
-  <div className="group relative flex cursor-pointer items-center rounded-md p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+const ConversationItem = ({ id, title, preview, date, category, searchQuery = '', onSelect }) => (
+  <div 
+    className="group relative flex cursor-pointer items-center rounded-md p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+    onClick={() => onSelect(id)}
+  >
     <div className="flex-1 space-y-1">
       <p className="text-sm font-medium leading-none">
         {highlightText(title, searchQuery)}
@@ -32,7 +35,7 @@ const ConversationItem = ({ title, preview, date, category, searchQuery = '' }) 
   </div>
 );
 
-const ConversationList = ({ conversations, searchQuery = '' }) => {
+const ConversationList = ({ conversations, searchQuery = '', onSelectConversation }) => {
   return (
     <div className="flex flex-col min-h-full">
       <div className="flex-1 space-y-1 px-2">
@@ -41,6 +44,7 @@ const ConversationList = ({ conversations, searchQuery = '' }) => {
             key={conv.id} 
             {...conv} 
             searchQuery={searchQuery}
+            onSelect={onSelectConversation}
           />
         ))}
       </div>
@@ -48,4 +52,4 @@ const ConversationList = ({ conversations, searchQuery = '' }) => {
   );
 };
 
-export default ConversationList; 
+export default ConversationList;

@@ -1,53 +1,65 @@
-import React, { useState } from 'react';
+import React from 'react';
 import LoginDialog from './LoginDialog';
 import LogoutMenu from './LogoutMenu';
 import { Avatar, AvatarImage, AvatarFallback } from "../../components/ui/avatar";
 import { User } from "lucide-react";
+import { useAuth } from '../../contexts/AuthContext';
 
 const UserAvatar = () => {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
 
-    const handleLogin = (email, password) => {
-        console.log('Tentative de connexion avec:', email, password);
-        setIsLoggedIn(true);
-    };
+  const getInitials = () => {
+    if (!user) return 'U';
 
-    const handleLogout = () => {
-        setIsLoggedIn(false);
-    };
+    if (user.username) {
+      return user.username
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
+    }
 
-    const renderAvatar = () => {
-        if (!isLoggedIn) {
-            return (
-                <Avatar className="cursor-pointer">
-                    <AvatarFallback className="bg-[#FFFFFF] text-[#16698C]">
-                        <User className="h-6 w-6" />
-                    </AvatarFallback>
-                </Avatar>
-            );
-        }
+    if (user.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
 
-        return (
-            <Avatar className="cursor-pointer">
-                <AvatarImage src="https://github.com/shadcn.png" />
-                <AvatarFallback>CN</AvatarFallback>
-            </Avatar>
-        );
-    };
+    return 'U';
+  };
 
-    if (!isLoggedIn) {
-        return (
-            <LoginDialog onLogin={handleLogin}>
-                {renderAvatar()}
-            </LoginDialog>
-        );
+  const renderAvatar = () => {
+    if (!isAuthenticated) {
+      return (
+        <Avatar className="cursor-pointer">
+          <AvatarFallback className="bg-[#FFFFFF] text-[#16698C]">
+            <User className="h-6 w-6" />
+          </AvatarFallback>
+        </Avatar>
+      );
     }
 
     return (
-        <LogoutMenu onLogout={handleLogout}>
-            {renderAvatar()}
-        </LogoutMenu>
+      <Avatar className="cursor-pointer">
+        {user?.avatar ? (
+          <AvatarImage src={user.avatar} alt={user.username || 'avatar'} />
+        ) : (
+          <AvatarFallback className="bg-[#15ACCD] text-[#FFFFFF]">
+            {getInitials()}
+          </AvatarFallback>
+        )}
+      </Avatar>
     );
+  };
+
+  return isAuthenticated ? (
+    <LogoutMenu onLogout={logout} user={user}>
+      {renderAvatar()}
+    </LogoutMenu>
+  ) : (
+    <LoginDialog>
+      {renderAvatar()}
+    </LoginDialog>
+  );
 };
 
-export default UserAvatar; 
+export default UserAvatar;

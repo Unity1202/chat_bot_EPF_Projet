@@ -1,8 +1,60 @@
+import React from 'react';
 import Message from "./Message";
+import { Trash2, BarChart } from "lucide-react";
+import { deleteConversation } from "../../Services/chatService";
 
-export default function ChatBox({ messages, isLoading }) {
+export default function ChatBox({ messages, isLoading, conversationId, onDeleteConversation }) {
+  const showWelcomeMessage = messages.length === 0 && !isLoading;
+  
+  // Fonction pour supprimer la conversation courante
+  const handleDeleteConversation = async () => {
+    if (!conversationId) return;
+    
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette conversation ?")) {
+      try {
+        const success = await deleteConversation(conversationId);
+        if (success) {
+          if (onDeleteConversation) {
+            onDeleteConversation(conversationId);
+          }
+        } else {
+          alert("Impossible de supprimer la conversation");
+        }
+      } catch (error) {
+        console.error("Erreur lors de la suppression:", error);
+        alert("Une erreur est survenue lors de la suppression");
+      }
+    }
+  };
+  
   return (
-    <div className="flex-1 overflow-y-auto p-4">
+    <div className="flex-1 overflow-y-auto p-4 relative">
+      {/* Actions flottantes en haut à droite si une conversation est active */}
+      {conversationId && messages.length > 0 && (
+        <div className="absolute top-2 right-2 flex gap-2">
+          <button
+            onClick={handleDeleteConversation}
+            className="p-2 rounded-full bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 transition-colors"
+            title="Supprimer cette conversation"
+          >
+            <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
+          </button>
+        </div>
+      )}
+      
+      {showWelcomeMessage && (
+        <div className="flex flex-col items-center justify-center h-full p-10 text-center">
+          <div className="w-16 h-16 bg-[#16698C] rounded-full flex items-center justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Bienvenue sur JuridicA</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md">
+            Je suis votre assistant juridique spécialisé pour les Junior-Entreprises. 
+            Comment puis-je vous aider aujourd'hui ?
+          </p>
+        </div>
+      )}
+      
       {messages.map((msg) => (
         <Message key={msg.id} text={msg.text} sender={msg.sender} sources={msg.sources} />
       ))}

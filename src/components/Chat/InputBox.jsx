@@ -1,12 +1,15 @@
 import { useState, useRef } from 'react';
 
-export default function InputBox({ sendMessage, isSidebarOpen, onFileUpload, isLoading }) {
+export default function InputBox({ sendMessage, onFileUpload, isLoading, disabled }) {
   const [message, setMessage] = useState('');
   const fileInputRef = useRef(null);
+  
+  // Déterminer si l'input doit être désactivé
+  const isDisabled = isLoading || disabled;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (message.trim() && !isLoading) {
+    if (message.trim() && !isDisabled) {
       sendMessage(message);
       setMessage('');
     }
@@ -28,8 +31,8 @@ export default function InputBox({ sendMessage, isSidebarOpen, onFileUpload, isL
       <button 
         type="button" 
         onClick={handleFileClick}
-        disabled={isLoading}
-        className={`text-background hover:text-gray-700 text-xl ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        disabled={isDisabled}
+        className={`text-background hover:text-gray-700 text-xl ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         📎
       </button>
@@ -39,21 +42,25 @@ export default function InputBox({ sendMessage, isSidebarOpen, onFileUpload, isL
         onChange={handleFileChange}
         className="hidden"
         multiple
-        disabled={isLoading}
+        disabled={isDisabled}
       />
       <input
         type="text"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder={isLoading ? "En attente de réponse..." : "Tapez votre message ici..."}
-        disabled={isLoading}
+        placeholder={
+          disabled ? "Chargement de la conversation..." : 
+          isLoading ? "En attente de réponse..." : 
+          "Tapez votre message ici..."
+        }
+        disabled={isDisabled}
         className="flex-1 p-2 border rounded-lg bg-background text-flex-1 disabled:opacity-70"
       />
       <button 
         type="submit" 
-        disabled={isLoading || !message.trim()}
+        disabled={isDisabled || !message.trim()}
         className={`bg-[#16698C] text-white px-4 py-2 rounded-lg ${
-          isLoading || !message.trim() 
+          isDisabled || !message.trim() 
             ? 'opacity-50 cursor-not-allowed' 
             : 'hover:bg-[#16ACCD]'
         }`}
