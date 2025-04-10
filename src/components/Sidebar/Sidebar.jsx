@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Sidebar as UISidebar,
   SidebarContent
@@ -10,7 +10,7 @@ import { useSearch } from "../../hooks/useSearch";
 import { useFilter } from "../../hooks/useFilter";
 
 // conversations fictives pour tester le formatage
-const conversations = [
+const initialConversations = [
   {
     id: 1,
     title: "Conversation d'aujourd'hui",
@@ -70,8 +70,15 @@ const conversations = [
 ];
 
 export function Sidebar() {
+  const [conversations, setConversations] = useState(initialConversations);
   const { searchQuery, setSearchQuery, filteredItems: searchFilteredItems } = useSearch(conversations);
   const { selectedFilter, setSelectedFilter, filteredItems: categoryFilteredItems } = useFilter(searchFilteredItems);
+
+  const handleDelete = (id) => {
+    setConversations(prevConversations => 
+      prevConversations.filter(conv => conv.id !== id)
+    );
+  };
 
   return (
     <UISidebar className="mt-16">
@@ -93,6 +100,7 @@ export function Sidebar() {
               <ConversationList 
                 conversations={categoryFilteredItems}
                 searchQuery={searchQuery}
+                onDelete={handleDelete}
               />
             </ScrollArea>
           </div>
@@ -100,4 +108,4 @@ export function Sidebar() {
       </SidebarContent>
     </UISidebar>
   );
-} 
+}

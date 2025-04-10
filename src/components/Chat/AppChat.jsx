@@ -31,7 +31,7 @@ export default function AppChat({ isSidebarOpen }) {
   };
 
   return (
-    <div className="fixed right-0 top-0 w-[calc(100%-16rem)] h-screen flex flex-col overflow-hidden">
+    <div className="fixed right-0 bottom-2 w-[calc(100%-16rem)] h-[calc(100vh-64px)] flex flex-col overflow-hidden">
       {/* ChatBox */}
       <div className="flex-1 min-h-0">
         <div className="h-[calc(100vh-8rem)] overflow-y-auto p-4">
