@@ -11,9 +11,23 @@ const API_URL = 'http://localhost:8000/api/chat';
  * @param {string|null} conversationId - L'ID de conversation pour continuer une conversation existante
  * @returns {Promise<Object>} - La réponse du backend
  */
-export const sendQuery = async (query, conversationId = null) => {
+export const sendQuery = async (query, conversationId = null, options = {}) => {
   try {
-    const payload = { query };
+    // Options par défaut pour le RAG
+    const defaultOptions = {
+      use_rag: true,
+      max_sources: 5,
+    };
+    
+    // Fusionner les options par défaut avec les options fournies
+    const mergedOptions = { ...defaultOptions, ...options };
+    
+    // Préparer le payload avec les options RAG
+    const payload = { 
+      query,
+      use_rag: mergedOptions.use_rag,
+      max_sources: mergedOptions.max_sources
+    };
 
     // Préparer les en-têtes standard pour toutes les requêtes
     const headers = {
@@ -49,6 +63,39 @@ export const sendQuery = async (query, conversationId = null) => {
     return data;
   } catch (error) {
     console.error("Erreur lors de l'envoi de la requête:", error);
+    throw error;
+  }
+};
+
+/**
+ * Envoie un fichier au backend pour indexation RAG
+ * @param {File} file - Le fichier à envoyer
+ * @param {string|null} conversationId - ID de la conversation associée (optionnel)
+ * @returns {Promise<Object>} - La réponse du backend
+ */
+export const uploadFileForRAG = async (file, conversationId = null) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    if (conversationId) {
+      formData.append('conversation_id', conversationId);
+    }
+    
+    const response = await fetch(`${API_URL}/upload-document`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Erreur API: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Erreur lors de l'upload du fichier:", error);
     throw error;
   }
 };
@@ -300,7 +347,7 @@ export const deleteConversation = async (conversationId) => {
     }
     
     // Utiliser l'endpoint de suppression d'historique
-    const response = await fetch(`${API_URL}/history/${conversationId}`, {
+    const response = await fetch(`${API_URL}/delete/${conversationId}`, {
       method: 'DELETE',
       credentials: 'include', // Important pour envoyer les cookies
       headers: {
@@ -353,16 +400,19 @@ export const getUserStatistics = async () => {
 
 /**
  * Crée une nouvelle conversation pour l'utilisateur connecté
+ * @param {string} query - La question initiale pour déterminer la catégorie et le titre
  * @returns {Promise<Object>} - Les informations de la nouvelle conversation
  */
-export const createNewConversation = async () => {
+export const createNewConversation = async (query = "Nouvelle conversation") => {
   try {
     const response = await fetch(`${API_URL}/new-conversation`, {
       method: 'POST',
       credentials: 'include', // Inclure les cookies pour l'authentification
       headers: {
         'Accept': 'application/json',
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ query }),
     });
 
     if (!response.ok) {

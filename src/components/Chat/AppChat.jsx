@@ -1,47 +1,51 @@
 import { useState, useEffect } from "react";
 import ChatBox from "./ChatBox";
 import InputBox from "./InputBox";
-import { sendQuery, getConversationById } from "../../Services/chatService";
+import { sendQuery, getConversationById, deleteConversation, uploadFileForRAG } from "../../Services/chatService";
 
-export default function AppChat({ conversationId = null, onConversationDeleted }) {
-  const [messages, setMessages] = useState([]);
+export default function AppChat({ conversationId = null, onConversationDeleted }) {  const [messages, setMessages] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
+  const [currentConversationTitle, setCurrentConversationTitle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
 
-  // Charger une conversation spécifique quand conversationId change
+// Dans useEffect qui charge la conversation
 useEffect(() => {
-  const loadConversation = async () => {
-    if (!conversationId) {
-      // Si aucune conversation n'est sélectionnée, réinitialiser les messages
+  const loadConversation = async () => {    if (!conversationId) {
       setMessages([]);
       setCurrentConversationId(null);
+      setCurrentConversationTitle(null);
       return;
     }
     
-    // Mettre à jour l'ID de la conversation actuelle
     setCurrentConversationId(conversationId);
     console.log("ID de conversation mis à jour:", conversationId);
-    
-    // Pour une nouvelle conversation, ne pas essayer de charger l'historique
-    // On pourrait ajouter une vérification ici si nécessaire
-    // (par exemple, une prop isNewConversation)
     
     setIsLoadingConversation(true);
     
     try {
       const conversation = await getConversationById(conversationId);
-      
-      if (conversation && conversation.messages) {
-        setMessages(conversation.messages);
+        if (conversation) {
+        // Mettre à jour le titre de la conversation
+        setCurrentConversationTitle(conversation.title || null);
+        
+        if (conversation.messages && conversation.messages.length > 0) {
+          setMessages(conversation.messages);
+        } else {
+          // Pour une nouvelle conversation, ajouter un message d'accueil du bot
+          setMessages([{
+            id: `welcome-${Date.now()}`,
+            text: "Bonjour, comment puis-je vous aider aujourd'hui ?",
+            sender: "bot",
+            timestamp: new Date().toISOString()
+          }]);
+        }
       } else {
-        // Important : garder l'ID de conversation même si l'historique est vide
         setMessages([]);
-        // NE PAS réinitialiser currentConversationId ici !
+        setCurrentConversationTitle(null);
       }
     } catch (error) {
       console.error("Erreur lors du chargement de la conversation :", error);
-      // Important : NE PAS réinitialiser currentConversationId en cas d'erreur !
     } finally {
       setIsLoadingConversation(false);
     }
@@ -49,8 +53,7 @@ useEffect(() => {
   
   loadConversation();
 }, [conversationId]);
-
-  const sendMessage = async (text) => {
+  const sendMessage = async (text, options = {}) => {
     const newMessage = { id: Date.now(), text, sender: "user" };
     const updatedMessages = [...messages, newMessage];
     setMessages(updatedMessages);
@@ -59,18 +62,21 @@ useEffect(() => {
     
     try {
       console.log("Envoi de message avec ID de conversation:", currentConversationId);
+      console.log("Options RAG:", options);
 
-      const response = await sendQuery(text, currentConversationId);
-
-      if (response.conversation_id) {
+      const response = await sendQuery(text, currentConversationId, options);if (response.conversation_id) {
         setCurrentConversationId(response.conversation_id);
       }
-
+      
+      if (response.title) {
+        setCurrentConversationTitle(response.title);
+      }      // Traitement amélioré de la réponse pour RAG
       const botReply = {
         id: Date.now() + 1,
         text: response.answer,
         sender: "bot",
         sources: response.sources || [],
+        citations: response.citations || [],
       };
 
       setMessages([...updatedMessages, botReply]);
@@ -88,48 +94,105 @@ useEffect(() => {
       setIsLoading(false);
     }
   };
+  const handleFileUpload = async (files) => {
+    setIsLoading(true);
+    
+    try {
+      const newMessages = [...messages];
+      const filePromises = [];
 
-  const handleFileUpload = (files) => {
-    const newMessages = [...messages];
-
-    Array.from(files).forEach((file, index) => {
-      const newMessage = {
-        id: Date.now() + index,
-        text: `Pièce jointe : ${file.name}`,
-        sender: "user",
+      // Ajouter les messages pour chaque fichier
+      Array.from(files).forEach((file, index) => {
+        const newMessage = {
+          id: Date.now() + index,
+          text: `Pièce jointe : ${file.name}`,
+          sender: "user",
+        };
+        newMessages.push(newMessage);
+        
+        // Créer une promesse pour chaque fichier à uploader
+        filePromises.push(uploadFileForRAG(file, currentConversationId));
+      });
+      
+      // Afficher d'abord les messages indiquant que des fichiers sont joints
+      setMessages(newMessages);
+      
+      // Uploader les fichiers en parallèle
+      const uploadResults = await Promise.allSettled(filePromises);
+      
+      // Traiter les résultats des uploads
+      const successfulUploads = uploadResults.filter(result => result.status === 'fulfilled');
+      const failedUploads = uploadResults.filter(result => result.status === 'rejected');
+      
+      // Si des fichiers ont été uploadés avec succès
+      if (successfulUploads.length > 0) {
+        const botReply = {
+          id: Date.now() + files.length,
+          text: `J'ai bien reçu ${successfulUploads.length} document${successfulUploads.length > 1 ? 's' : ''}. Je vais les prendre en compte pour mes réponses futures.`,
+          sender: "bot",
+        };
+        setMessages([...newMessages, botReply]);
+        
+        // Si un ID de conversation a été retourné par l'API, le mémoriser
+        const firstSuccess = successfulUploads[0].value;
+        if (firstSuccess && firstSuccess.conversation_id && !currentConversationId) {
+          setCurrentConversationId(firstSuccess.conversation_id);
+        }
+      }
+      
+      // Si certains fichiers ont échoué
+      if (failedUploads.length > 0) {
+        const errorMessage = {
+          id: Date.now() + files.length + 1,
+          text: `Je n'ai pas pu traiter ${failedUploads.length} fichier${failedUploads.length > 1 ? 's' : ''}. Veuillez vérifier le format et réessayer.`,
+          sender: "bot",
+          isError: true,
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'upload des fichiers:", error);
+      
+      const errorMessage = {
+        id: Date.now() + files.length,
+        text: "Désolé, je n'ai pas pu traiter les fichiers. Veuillez réessayer plus tard.",
+        sender: "bot",
+        isError: true,
       };
-      newMessages.push(newMessage);
-    });
-
-    setMessages(newMessages);
+      
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
-
   const startNewConversation = () => {
     setMessages([]);
     setCurrentConversationId(null);
+    setCurrentConversationTitle(null);
   };
-
-  const handleDeleteConversation = (deletedConversationId) => {
-    if (deletedConversationId === currentConversationId) {
-      startNewConversation();
-    }
-
-    if (onConversationDeleted) {
-      onConversationDeleted(deletedConversationId);
+  const handleDeleteConversation = async (convId) => {
+    try {
+      const success = await deleteConversation(convId);
+      if (success && onConversationDeleted) {
+        // Notifier le composant parent que la conversation a été supprimée
+        onConversationDeleted(convId);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression de la conversation:", error);
+      throw error; // Rethrow pour que ChatBox puisse afficher un message d'erreur
     }
   };
 
   return (
     <div className="fixed right-0 top-0 w-[calc(100%-16rem)] h-screen flex flex-col overflow-hidden">
       <div className="h-16 shrink-0 bg-background border-b p-4 flex justify-between items-center">
-        <h2 className="text-lg font-medium">
-          {isLoadingConversation ? (
+        <h2 className="text-lg font-medium">          {isLoadingConversation ? (
             <span className="flex items-center">
               <span className="animate-spin h-4 w-4 mr-2 border-t-2 border-[#16698C] rounded-full"></span>
               Chargement...
             </span>
           ) : currentConversationId ? (
-            `Conversation #${currentConversationId.substring(0, 8)}...`
+            currentConversationTitle || `Conversation #${currentConversationId.substring(0, 8)}...`
           ) : (
             "Nouvelle conversation"
           )}
@@ -144,12 +207,12 @@ useEffect(() => {
 
       <div className="flex-1 min-h-0">
         <div className="h-[calc(100vh-16rem)] overflow-y-auto p-4">
-          <ChatBox
-            messages={messages}
-            isLoading={isLoading || isLoadingConversation}
-            conversationId={currentConversationId}
-            onDeleteConversation={handleDeleteConversation}
-          />
+        <ChatBox 
+        messages={messages} 
+        isLoading={isLoading}
+        conversationId={conversationId}
+        onDeleteConversation={handleDeleteConversation}
+      />
         </div>
       </div>
 

@@ -64,3 +64,64 @@ export function formatConversationDate(date) {
   // année précédente
   return conversationDate.getFullYear().toString();
 } 
+
+// Fonction pour regrouper les conversations par période de temps
+export function groupConversationsByDate(conversations) {
+  const groups = {
+    "Aujourd'hui": [],
+    "Hier": [],
+    "Cette semaine": [],
+    "Ce mois": [],
+    "Le mois dernier": [],
+    "Plus ancien": []
+  };
+  
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  
+  const lastWeekDate = new Date(now);
+  lastWeekDate.setDate(now.getDate() - 7);
+  
+  const lastMonthDate = new Date(now);
+  lastMonthDate.setMonth(now.getMonth() - 1);
+  
+  const twoMonthsAgo = new Date(now);
+  twoMonthsAgo.setMonth(now.getMonth() - 2);
+  
+  conversations.forEach(conversation => {
+    const convDate = new Date(conversation.date);
+    
+    // Aujourd'hui
+    if (convDate.toDateString() === now.toDateString()) {
+      groups["Aujourd'hui"].push(conversation);
+    }
+    // Hier
+    else if (convDate.toDateString() === yesterday.toDateString()) {
+      groups["Hier"].push(conversation);
+    }
+    // Cette semaine
+    else if (convDate > lastWeekDate) {
+      groups["Cette semaine"].push(conversation);
+    }
+    // Ce mois
+    else if (convDate.getMonth() === now.getMonth() && convDate.getFullYear() === now.getFullYear()) {
+      groups["Ce mois"].push(conversation);
+    }
+    // Le mois dernier
+    else if (convDate > lastMonthDate) {
+      groups["Le mois dernier"].push(conversation);
+    }
+    // Plus ancien
+    else {
+      groups["Plus ancien"].push(conversation);
+    }
+  });
+  
+  // Trier les conversations dans chaque groupe
+  Object.keys(groups).forEach(key => {
+    groups[key].sort((a, b) => new Date(b.date) - new Date(a.date));
+  });
+  
+  return groups;
+}

@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Sidebar as UISidebar,
   SidebarContent
 } from "../ui/sidebar";
 import SidebarHeader from "./SidebarHeader";
 import ConversationList from "./ConversationList";
+import { getConversationHistory, deleteConversation, createNewConversation } from '../../Services/chatService';
+
 import { ScrollArea } from "../ui/scroll-area";
-import { getConversationHistory } from "../../Services/chatService";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSearch } from "../../hooks/useSearch";
 import { useFilter } from "../../hooks/useFilter";
-import { createNewConversation } from "../../Services/chatService";
 
-
-export function Sidebar({ onConversationSelect, refreshTrigger = 0 }) {
+export function Sidebar({ onConversationSelect, refreshTrigger = 0, activeConversationId }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { isAuthenticated } = useAuth();
-  
+  const [filter] = useState(null);
+
   const { searchQuery, setSearchQuery, filteredItems: searchFilteredItems } = useSearch(conversations);
   const { selectedFilter, setSelectedFilter, filteredItems: categoryFilteredItems } = useFilter(searchFilteredItems);
 
@@ -44,21 +44,62 @@ export function Sidebar({ onConversationSelect, refreshTrigger = 0 }) {
     };
   
     loadConversations();
-  }, [isAuthenticated, refreshTrigger]);// Ajouter refreshTrigger comme dépendance
+  }, [isAuthenticated, refreshTrigger]);
 
   // Fonction pour démarrer une nouvelle conversation
-const handleNewChat = async () => {
-  try {
-    const newConversation = await createNewConversation();
-    console.log("Nouvelle conversation créée avec ID:", newConversation.conversation_id);
-    
-    if (newConversation.conversation_id && onConversationSelect) {
-      onConversationSelect(newConversation.conversation_id);
+  const handleNewChat = async () => {
+    try {
+      const newConversation = await createNewConversation();
+      console.log("Nouvelle conversation créée avec ID:", newConversation.conversation_id);
+      
+      if (newConversation.conversation_id && onConversationSelect) {
+        onConversationSelect(newConversation.conversation_id);
+
+        // Rafraîchir la liste des conversations pour afficher la nouvelle
+        const historicConversations = await getConversationHistory();
+        setConversations(historicConversations);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la création d'une nouvelle conversation :", error);
     }
-  } catch (error) {
-    console.error("Erreur lors de la création d'une nouvelle conversation :", error);
+  };
+
+  // Fonction pour supprimer une conversation
+  const handleDeleteConversation = async (conversationId) => {
+    try {
+      setLoading(true);
+      const success = await deleteConversation(conversationId);
+      if (success) {
+        // Mettre à jour la liste locale
+        setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+        
+        // Si c'était la conversation active, notifier le parent
+        if (activeConversationId === conversationId) {
+          onConversationSelect(null);
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      setError("Échec de la suppression de la conversation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Version sans useMemo pour éviter l'erreur
+  let filteredConversations = conversations;
+  
+  if (filter) {
+    filteredConversations = filteredConversations.filter(conv => conv.category === filter);
   }
-};
+  
+  if (searchQuery) {
+    const searchLower = searchQuery.toLowerCase();
+    filteredConversations = filteredConversations.filter(conv => 
+      conv.title.toLowerCase().includes(searchLower) || 
+      conv.preview.toLowerCase().includes(searchLower)
+    );
+  }
 
   // Fonction pour sélectionner une conversation existante
   const handleSelectConversation = (conversationId) => {
@@ -104,6 +145,8 @@ const handleNewChat = async () => {
                   conversations={categoryFilteredItems}
                   searchQuery={searchQuery}
                   onSelectConversation={handleSelectConversation}
+                  onDeleteConversation={handleDeleteConversation}
+                  activeConversationId={activeConversationId}
                 />
               )}
             </ScrollArea>
