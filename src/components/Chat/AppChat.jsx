@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import ChatBox from "./ChatBox";
 import InputBox from "./InputBox";
-import { sendQuery, getConversationById, deleteConversation, uploadFileForRAG } from "../../Services/chatService";
+import { sendQuery, getConversationById, deleteConversation } from "../../Services/chatService";
 
 export default function AppChat({ conversationId = null, onConversationDeleted }) {  const [messages, setMessages] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
@@ -52,8 +52,7 @@ useEffect(() => {
   };
   
   loadConversation();
-}, [conversationId]);
-  const sendMessage = async (text, options = {}) => {
+}, [conversationId]);  const sendMessage = async (text, options = {}) => {
     const newMessage = { id: Date.now(), text, sender: "user" };
     const updatedMessages = [...messages, newMessage];
     setMessages(updatedMessages);
@@ -64,13 +63,17 @@ useEffect(() => {
       console.log("Envoi de message avec ID de conversation:", currentConversationId);
       console.log("Options RAG:", options);
 
-      const response = await sendQuery(text, currentConversationId, options);if (response.conversation_id) {
+      const response = await sendQuery(text, currentConversationId, options);
+
+      if (response.conversation_id) {
         setCurrentConversationId(response.conversation_id);
       }
       
       if (response.title) {
         setCurrentConversationTitle(response.title);
-      }      // Traitement amélioré de la réponse pour RAG
+      }
+
+      // Traitement amélioré de la réponse pour RAG
       const botReply = {
         id: Date.now() + 1,
         text: response.answer,
@@ -93,77 +96,28 @@ useEffect(() => {
     } finally {
       setIsLoading(false);
     }
-  };
-  const handleFileUpload = async (files) => {
-    setIsLoading(true);
+  };  const handleFileUpload = async (files) => {
+    // Store files temporarily to be sent with the next message
+    // The actual upload will happen when the user sends a message
+    // For now, just show a confirmation message
+    const newMessages = [...messages];
     
-    try {
-      const newMessages = [...messages];
-      const filePromises = [];
-
-      // Ajouter les messages pour chaque fichier
-      Array.from(files).forEach((file, index) => {
-        const newMessage = {
-          id: Date.now() + index,
-          text: `Pièce jointe : ${file.name}`,
-          sender: "user",
-        };
-        newMessages.push(newMessage);
-        
-        // Créer une promesse pour chaque fichier à uploader
-        filePromises.push(uploadFileForRAG(file, currentConversationId));
-      });
-      
-      // Afficher d'abord les messages indiquant que des fichiers sont joints
-      setMessages(newMessages);
-      
-      // Uploader les fichiers en parallèle
-      const uploadResults = await Promise.allSettled(filePromises);
-      
-      // Traiter les résultats des uploads
-      const successfulUploads = uploadResults.filter(result => result.status === 'fulfilled');
-      const failedUploads = uploadResults.filter(result => result.status === 'rejected');
-      
-      // Si des fichiers ont été uploadés avec succès
-      if (successfulUploads.length > 0) {
-        const botReply = {
-          id: Date.now() + files.length,
-          text: `J'ai bien reçu ${successfulUploads.length} document${successfulUploads.length > 1 ? 's' : ''}. Je vais les prendre en compte pour mes réponses futures.`,
-          sender: "bot",
-        };
-        setMessages([...newMessages, botReply]);
-        
-        // Si un ID de conversation a été retourné par l'API, le mémoriser
-        const firstSuccess = successfulUploads[0].value;
-        if (firstSuccess && firstSuccess.conversation_id && !currentConversationId) {
-          setCurrentConversationId(firstSuccess.conversation_id);
-        }
-      }
-      
-      // Si certains fichiers ont échoué
-      if (failedUploads.length > 0) {
-        const errorMessage = {
-          id: Date.now() + files.length + 1,
-          text: `Je n'ai pas pu traiter ${failedUploads.length} fichier${failedUploads.length > 1 ? 's' : ''}. Veuillez vérifier le format et réessayer.`,
-          sender: "bot",
-          isError: true,
-        };
-        setMessages(prev => [...prev, errorMessage]);
-      }
-    } catch (error) {
-      console.error("Erreur lors de l'upload des fichiers:", error);
-      
-      const errorMessage = {
-        id: Date.now() + files.length,
-        text: "Désolé, je n'ai pas pu traiter les fichiers. Veuillez réessayer plus tard.",
-        sender: "bot",
-        isError: true,
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
+    const fileNames = Array.from(files).map(file => file.name).join(', ');
+    const fileMessage = {
+      id: Date.now(),
+      text: `Fichier${files.length > 1 ? 's' : ''} ajouté${files.length > 1 ? 's' : ''} : ${fileNames}`,
+      sender: "user",
+    };
+    
+    newMessages.push(fileMessage);
+    
+    const botReply = {
+      id: Date.now() + 1,
+      text: `J'ai bien reçu ${files.length} fichier${files.length > 1 ? 's' : ''}. Posez-moi votre question et j'utiliserai ce${files.length > 1 ? 's' : ''} document${files.length > 1 ? 's' : ''} pour vous répondre.`,
+      sender: "bot",
+    };
+    
+    setMessages([...newMessages, botReply]);
   };
   const startNewConversation = () => {
     setMessages([]);

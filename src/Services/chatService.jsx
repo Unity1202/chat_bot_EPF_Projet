@@ -9,6 +9,7 @@ const API_URL = 'http://localhost:8000/api/chat';
  * Envoie une requête au backend et récupère la réponse
  * @param {string} query - La question de l'utilisateur
  * @param {string|null} conversationId - L'ID de conversation pour continuer une conversation existante
+ * @param {Object} options - Options pour la requête (use_rag, max_sources, files)
  * @returns {Promise<Object>} - La réponse du backend
  */
 export const sendQuery = async (query, conversationId = null, options = {}) => {
@@ -22,35 +23,63 @@ export const sendQuery = async (query, conversationId = null, options = {}) => {
     // Fusionner les options par défaut avec les options fournies
     const mergedOptions = { ...defaultOptions, ...options };
     
-    // Préparer le payload avec les options RAG
-    const payload = { 
-      query,
-      use_rag: mergedOptions.use_rag,
-      max_sources: mergedOptions.max_sources
-    };
-
-    // Préparer les en-têtes standard pour toutes les requêtes
-    const headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-
     let url;
+    let headers = {};
+    let body;
+    
     // Si un ID de conversation est fourni, utiliser l'endpoint pour continuer la conversation
     if (conversationId) {
       url = `${API_URL}/continue/${conversationId}`;
+      headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      body = JSON.stringify({ 
+        query,
+        use_rag: mergedOptions.use_rag,
+        max_sources: mergedOptions.max_sources
+      });
     } else {
-      // Sinon, utiliser l'endpoint pour démarrer une nouvelle conversation
-      url = `${API_URL}/query`;
+      // Déterminer l'endpoint selon la présence de fichiers
+      if (mergedOptions.files && mergedOptions.files.length > 0) {
+        // Utiliser l'endpoint file-chat pour les requêtes avec fichiers
+        url = 'http://localhost:8000/api/file-chat/query';
+        
+        // Préparer FormData pour multipart/form-data
+        const formData = new FormData();
+        formData.append('query', query);
+        formData.append('use_rag', mergedOptions.use_rag.toString());
+        formData.append('max_sources', mergedOptions.max_sources.toString());
+        
+        // Ajouter les fichiers
+        mergedOptions.files.forEach(file => {
+          formData.append('files', file);
+        });
+        
+        body = formData;
+        // Ne pas définir Content-Type, le navigateur le fera automatiquement avec boundary
+      } else {
+        // Utiliser l'endpoint standard pour les requêtes texte uniquement
+        url = `${API_URL}/query`;
+        headers = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        };
+        body = JSON.stringify({ 
+          query,
+          use_rag: mergedOptions.use_rag,
+          max_sources: mergedOptions.max_sources
+        });
+      }
     }
 
-    console.log(`Envoi de requête à ${url}:`, payload);
+    console.log(`Envoi de requête à ${url}:`, mergedOptions.files ? 'FormData avec fichiers' : JSON.parse(body));
 
     const response = await fetch(url, {
       method: 'POST',
       headers,
       credentials: 'include', // Important pour envoyer les cookies
-      body: JSON.stringify(payload),
+      body,
     });
 
     if (!response.ok) {
@@ -60,42 +89,18 @@ export const sendQuery = async (query, conversationId = null, options = {}) => {
 
     const data = await response.json();
     console.log("Réponse du serveur:", data);
-    return data;
+    
+    // Normaliser la réponse pour correspondre au format attendu par le frontend
+    // Backend renvoie: answer, sources, excerpts, conversation_id
+    // Frontend attend: answer, sources, citations
+    return {
+      answer: data.answer,
+      sources: data.sources || [],
+      citations: data.excerpts || [], // Mapper excerpts vers citations
+      conversation_id: data.conversation_id
+    };
   } catch (error) {
     console.error("Erreur lors de l'envoi de la requête:", error);
-    throw error;
-  }
-};
-
-/**
- * Envoie un fichier au backend pour indexation RAG
- * @param {File} file - Le fichier à envoyer
- * @param {string|null} conversationId - ID de la conversation associée (optionnel)
- * @returns {Promise<Object>} - La réponse du backend
- */
-export const uploadFileForRAG = async (file, conversationId = null) => {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    if (conversationId) {
-      formData.append('conversation_id', conversationId);
-    }
-    
-    const response = await fetch(`${API_URL}/upload-document`, {
-      method: 'POST',
-      credentials: 'include',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Erreur API: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Erreur lors de l'upload du fichier:", error);
     throw error;
   }
 };

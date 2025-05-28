@@ -3,17 +3,22 @@ import { BookOpenIcon, BookOpenCheck, SearchIcon, LightbulbIcon } from 'lucide-r
 
 export default function InputBox({ sendMessage, onFileUpload, isLoading, disabled }) {
   const [message, setMessage] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const fileInputRef = useRef(null);
   const [useRAG, setUseRAG] = useState(true);
   
   // Déterminer si l'input doit être désactivé
-  const isDisabled = isLoading || disabled;
-  const handleSubmit = (e) => {
+  const isDisabled = isLoading || disabled;  const handleSubmit = (e) => {
     e.preventDefault();
     if (message.trim() && !isDisabled) {
-      // Passer les options RAG au sendMessage
-      sendMessage(message, { use_rag: useRAG });
+      // Passer les options RAG et les fichiers au sendMessage
+      const options = { 
+        use_rag: useRAG,
+        files: selectedFiles.length > 0 ? selectedFiles : undefined
+      };
+      sendMessage(message, options);
       setMessage('');
+      setSelectedFiles([]); // Clear files after sending
     }
   };
   
@@ -24,15 +29,41 @@ export default function InputBox({ sendMessage, onFileUpload, isLoading, disable
   const handleFileClick = () => {
     fileInputRef.current.click();
   };
-
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
-      onFileUpload(e.target.files);
+      const files = Array.from(e.target.files);
+      setSelectedFiles(files);
+      // Also call the parent's file upload handler for display purposes
+      onFileUpload(files);
       e.target.value = null; // Reset input
     }
   };
-  return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-background">      <button 
+
+  const removeFile = (indexToRemove) => {
+    const newFiles = selectedFiles.filter((_, index) => index !== indexToRemove);
+    setSelectedFiles(newFiles);
+  };  return (
+    <div className="bg-background">
+      {/* File indicators */}
+      {selectedFiles.length > 0 && (
+        <div className="flex flex-wrap gap-2 p-2 border-b">
+          {selectedFiles.map((file, index) => (
+            <div key={index} className="flex items-center bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-sm">
+              <span className="mr-2">{file.name}</span>
+              <button
+                type="button"
+                onClick={() => removeFile(index)}
+                className="text-blue-500 hover:text-blue-700"
+                title="Supprimer ce fichier"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-background"><button 
         type="button" 
         onClick={handleFileClick}
         disabled={isDisabled}
@@ -77,10 +108,10 @@ export default function InputBox({ sendMessage, onFileUpload, isLoading, disable
       <input
         type="text"
         value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder={
+        onChange={(e) => setMessage(e.target.value)}        placeholder={
           disabled ? "Chargement de la conversation..." : 
           isLoading ? "En attente de réponse..." : 
+          selectedFiles.length > 0 ? `Posez votre question sur ${selectedFiles.length} fichier${selectedFiles.length > 1 ? 's' : ''}...` :
           "Tapez votre message ici..."
         }
         disabled={isDisabled}
@@ -95,8 +126,8 @@ export default function InputBox({ sendMessage, onFileUpload, isLoading, disable
             : 'hover:bg-[#16ACCD]'
         }`}
       >
-        {isLoading ? 'Envoi...' : 'Envoyer'}
-      </button>
+        {isLoading ? 'Envoi...' : 'Envoyer'}      </button>
     </form>
+    </div>
   );
 }
