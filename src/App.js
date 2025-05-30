@@ -11,7 +11,6 @@ import { AuthProvider } from "./contexts/AuthContext"
 import { useAuth } from "./contexts/AuthContext";
 import { checkAuthentication } from "./Services/chatService";
 
-// Composant conteneur pour extraire l'ID de conversation de l'URL
 const ChatContainer = () => {
   const { conversationId } = useParams();
   const navigate = useNavigate();
@@ -71,18 +70,23 @@ const ChatContainer = () => {
           onConversationSelect={handleConversationSelect}
           refreshTrigger={refreshTrigger}
           activeConversationId={conversationId}
-        />
-        <main className="flex-1">
+        />        <main className="flex-1">
           {isLoadingAuth && conversationId ? (
             <div className="flex justify-center items-center h-screen">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16698C]"></div>
               <p className="ml-3 text-lg">Chargement de la conversation...</p>
             </div>
           ) : (
-            <AppChat 
-              conversationId={conversationId}
-              onConversationDeleted={handleConversationDeleted}
-            />
+            <div className="flex flex-col">
+              
+              
+              <div className="flex-1">
+                <AppChat 
+                  conversationId={conversationId}
+                  onConversationDeleted={handleConversationDeleted}
+                />
+              </div>
+            </div>
           )}
         </main>
       </div>

@@ -28,8 +28,18 @@ useEffect(() => {
         if (conversation) {
         // Mettre à jour le titre de la conversation
         setCurrentConversationTitle(conversation.title || null);
-        
-        if (conversation.messages && conversation.messages.length > 0) {
+          if (conversation.messages && conversation.messages.length > 0) {
+          // Debug pour vérifier les citations lors du chargement
+          console.group('🔄 Loading Conversation Messages');
+          console.log('Conversation loaded:', conversation);
+          console.log('Messages count:', conversation.messages.length);
+          conversation.messages.forEach((msg, index) => {
+            if (msg.sender === 'bot') {
+              console.log(`Message ${index} citations:`, msg.citations?.length || 0, msg.citations);
+            }
+          });
+          console.groupEnd();
+          
           setMessages(conversation.messages);
         } else {
           // Pour une nouvelle conversation, ajouter un message d'accueil du bot
@@ -71,16 +81,28 @@ useEffect(() => {
       
       if (response.title) {
         setCurrentConversationTitle(response.title);
-      }
-
-      // Traitement amélioré de la réponse pour RAG
+      }      // Traitement amélioré de la réponse pour RAG avec support multi-format
       const botReply = {
         id: Date.now() + 1,
         text: response.answer,
         sender: "bot",
         sources: response.sources || [],
-        citations: response.citations || [],
+        // Mapper toutes les variantes possibles de citations (comme dans chatService)
+        citations: response.citations || response.excerpts || response.context_excerpts || response.rag_excerpts || [],
       };
+
+      // Debug pour vérifier les citations reçues
+      console.group('🤖 Bot Reply Creation');
+      console.log('Response from backend:', response);
+      console.log('Available citation fields:');
+      console.log('- citations:', response.citations?.length || 0);
+      console.log('- excerpts:', response.excerpts?.length || 0);
+      console.log('- context_excerpts:', response.context_excerpts?.length || 0);
+      console.log('- rag_excerpts:', response.rag_excerpts?.length || 0);
+      console.log('Bot reply created:', botReply);
+      console.log('Final citations count:', botReply.citations?.length);
+      console.log('Final citations data:', botReply.citations);
+      console.groupEnd();
 
       setMessages([...updatedMessages, botReply]);
     } catch (error) {

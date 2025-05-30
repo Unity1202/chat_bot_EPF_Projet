@@ -2,8 +2,29 @@
  * Service pour gérer les communications avec l'API de chat
  */
 
+// Import des utilitaires de debug
+import { diagnoseRAGData, traceDataTransformation, validateAPIResponse } from '../utils/debugRAG.js';
+
 // URLs de base pour les différents endpoints de l'API
 const API_URL = 'http://localhost:8000/api/chat';
+
+/**
+ * Fonction utilitaire pour logger les données de debugging
+ * @param {string} context - Le contexte du log
+ * @param {Object} data - Les données à logger
+ */
+const debugLog = (context, data) => {
+  console.group(`🔍 DEBUG: ${context}`);
+  console.log('Data:', JSON.stringify(data, null, 2));
+  if (data && typeof data === 'object') {
+    console.log('Available keys:', Object.keys(data));
+    if (data.excerpts) console.log('Excerpts found:', data.excerpts);
+    if (data.citations) console.log('Citations found:', data.citations);
+    if (data.context_excerpts) console.log('Context excerpts found:', data.context_excerpts);
+    if (data.rag_excerpts) console.log('RAG excerpts found:', data.rag_excerpts);
+  }
+  console.groupEnd();
+};
 
 /**
  * Envoie une requête au backend et récupère la réponse
@@ -85,20 +106,25 @@ export const sendQuery = async (query, conversationId = null, options = {}) => {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.detail || `Erreur API: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log("Réponse du serveur:", data);
+    }    const data = await response.json();
+    debugLog("Response from sendQuery", data);
+    diagnoseRAGData(data, "sendQuery Response");
+    validateAPIResponse(data, "sendQuery");
     
     // Normaliser la réponse pour correspondre au format attendu par le frontend
     // Backend renvoie: answer, sources, excerpts, conversation_id
     // Frontend attend: answer, sources, citations
-    return {
+    const normalizedData = {
       answer: data.answer,
       sources: data.sources || [],
-      citations: data.excerpts || [], // Mapper excerpts vers citations
+      citations: data.excerpts || data.citations || data.context_excerpts || data.rag_excerpts || [], // Mapper toutes les variantes
       conversation_id: data.conversation_id
     };
+    
+    debugLog("Normalized data for frontend", normalizedData);
+    traceDataTransformation(data, normalizedData, "sendQuery Normalization");
+    
+    return normalizedData;
   } catch (error) {
     console.error("Erreur lors de l'envoi de la requête:", error);
     throw error;
@@ -219,11 +245,56 @@ export const getConversationById = async (conversationId) => {
       return null;
     }
     
+    debugLog("Starting getConversationById", { conversationId });
+    
+    // 1. Essayer d'abord de récupérer l'historique complet avec citations depuis le backend
     try {
-      // Utiliser l'endpoint d'historique de conversation avec l'ID spécifique
+      const fullHistory = await getFullConversationHistory(conversationId);
+      if (fullHistory && fullHistory.messages) {
+        debugLog("Using full conversation history from backend", fullHistory);
+        
+        // Récupérer les métadonnées de la conversation
+        const conversationInfo = await getConversationMetadata(conversationId);
+        
+        const transformedConversation = {
+          id: conversationId,
+          title: conversationInfo?.title || fullHistory.title || `Conversation #${conversationId.substring(0, 8)}...`,
+          category: assignCategory(conversationInfo?.category || fullHistory.category || 'other'),
+          messages: fullHistory.messages.map((msg, index) => {
+            debugLog(`Processing message ${index} from full history`, msg);
+            
+            const transformedMessage = {
+              id: msg.id || `msg-${index}-${Date.now()}`,
+              text: msg.content || msg.message || msg.text,
+              sender: msg.role === 'user' ? 'user' : 'bot',
+              timestamp: msg.timestamp || new Date().toISOString(),
+              sources: msg.sources || [],
+              // Récupérer les citations directement du backend (toutes les variantes)
+              citations: msg.citations || msg.excerpts || msg.context_excerpts || msg.rag_excerpts || []
+            };
+            
+            if (msg.role !== 'user') {
+              traceDataTransformation(msg, transformedMessage, `Full History Message ${index}`);
+              validateAPIResponse(transformedMessage, "message");
+            }
+            
+            return transformedMessage;
+          }),
+          conversationId: conversationId
+        };
+        
+        debugLog("Successfully transformed full history conversation", transformedConversation);
+        return transformedConversation;
+      }
+    } catch (error) {
+      console.warn("Full history not available, falling back to standard history:", error);
+    }
+    
+    // 2. Fallback : utiliser l'endpoint d'historique standard et enrichir avec les citations
+    try {
       const response = await fetch(`${API_URL}/history/${conversationId}`, {
         method: 'GET',
-        credentials: 'include', // Important pour envoyer les cookies
+        credentials: 'include',
         headers: {
           'Accept': 'application/json'
         }
@@ -233,10 +304,8 @@ export const getConversationById = async (conversationId) => {
       if (response.status === 404) {
         console.log(`Conversation ${conversationId} n'a pas encore d'historique.`);
         
-        // Récupérer les informations générales de la conversation
         const conversationInfo = await getConversationMetadata(conversationId);
         
-        // Retourner une conversation vide mais valide avec l'ID
         return {
           id: conversationId,
           title: conversationInfo?.title || `Conversation #${conversationId.substring(0, 8)}...`,
@@ -252,34 +321,70 @@ export const getConversationById = async (conversationId) => {
       }
       
       const data = await response.json();
-      console.log("Historique de conversation récupéré:", data);
+      debugLog("Standard conversation history response", data);
+      diagnoseRAGData(data, "getConversationById Standard Response");
+      validateAPIResponse(data, "getConversationById");
       
-      // Transformer les données pour correspondre à notre structure d'affichage
-      // Récupérer d'abord les informations générales de la conversation
+      // Récupérer les métadonnées de la conversation
       const conversationInfo = await getConversationMetadata(conversationId);
       
-      // Transformer l'historique en format attendu par notre application
-      return {
+      // Transformer l'historique et enrichir chaque message avec ses citations du backend
+      const transformedMessages = await Promise.all(
+        (data.history || []).map(async (msg, index) => {
+          debugLog(`Processing message ${index} from standard history`, msg);
+          
+          let citations = msg.citations || msg.excerpts || msg.context_excerpts || msg.rag_excerpts || [];
+          
+          // Si le message n'a pas de citations et que c'est un message bot, essayer de les récupérer du backend
+          if (citations.length === 0 && msg.role !== 'user' && msg.id) {
+            try {
+              const backendCitations = await getMessageCitations(conversationId, msg.id);
+              if (backendCitations && backendCitations.length > 0) {
+                citations = backendCitations;
+                debugLog(`Enriched message ${msg.id} with ${citations.length} citations from backend`, citations);
+              }
+            } catch (error) {
+              console.warn(`Could not enrich message ${msg.id} with citations:`, error);
+            }
+          }
+          
+          const transformedMessage = {
+            id: msg.id || `msg-${index}-${Date.now()}`,
+            text: msg.content || msg.message,
+            sender: msg.role === 'user' ? 'user' : 'bot',
+            timestamp: msg.timestamp || new Date().toISOString(),
+            sources: msg.sources || [],
+            citations: citations
+          };
+          
+          if (msg.role !== 'user') {
+            traceDataTransformation(msg, transformedMessage, `Standard History Message ${index}`);
+            validateAPIResponse(transformedMessage, "message");
+          }
+          
+          return transformedMessage;
+        })
+      );
+      
+      const transformedConversation = {
         id: conversationId,
         title: conversationInfo?.title || `Conversation #${conversationId.substring(0, 8)}...`,
         category: assignCategory(conversationInfo?.category || 'other'),
-        messages: (data.history || []).map((msg, index) => ({
-          id: msg.id || `msg-${index}-${Date.now()}`, // Assurer un ID unique
-          text: msg.content || msg.message, // Accepter les deux formats possibles
-          sender: msg.role === 'user' ? 'user' : 'bot',
-          timestamp: msg.timestamp || new Date().toISOString(),
-          sources: msg.sources || []
-        })),
+        messages: transformedMessages,
         conversationId: conversationId
       };
+      
+      traceDataTransformation(data, transformedConversation, "Standard Conversation Transformation");
+      debugLog("Successfully transformed standard history conversation", transformedConversation);
+      
+      return transformedConversation;
+      
     } catch (error) {
       if (error.message.includes('404')) {
         console.log(`Conversation ${conversationId} n'a pas encore d'historique.`);
         
-        // Récupérer les informations générales de la conversation
         const conversationInfo = await getConversationMetadata(conversationId);
         
-        // Retourner une conversation vide mais valide avec l'ID
         return {
           id: conversationId,
           title: conversationInfo?.title || `Conversation #${conversationId.substring(0, 8)}...`,
@@ -295,7 +400,6 @@ export const getConversationById = async (conversationId) => {
     console.error('Erreur lors de la récupération de la conversation:', error);
     
     // Même en cas d'erreur, retourner un objet valide avec l'ID de conversation
-    // pour éviter de perdre la référence à la conversation en cours
     return {
       id: conversationId,
       title: `Conversation #${conversationId.substring(0, 8)}...`,
@@ -437,5 +541,64 @@ export const createNewConversation = async (query = "Nouvelle conversation") => 
   } catch (error) {
     console.error("Erreur lors de la création d'une nouvelle conversation :", error);
     throw error;
+  }
+};
+
+/**
+ * Récupère les citations pour un message spécifique depuis le backend
+ * @param {string} conversationId - L'ID de la conversation
+ * @param {string} messageId - L'ID du message
+ * @returns {Promise<Array>} - Les citations du message
+ */
+export const getMessageCitations = async (conversationId, messageId) => {
+  try {
+    const response = await fetch(`${API_URL}/message/${conversationId}/${messageId}/citations`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      debugLog(`Citations for message ${messageId}`, data);
+      return data.citations || data.excerpts || [];
+    } else {
+      console.warn(`No citations endpoint available for message ${messageId}`);
+      return [];
+    }
+  } catch (error) {
+    console.warn(`Could not fetch citations for message ${messageId}:`, error);
+    return [];
+  }
+};
+
+/**
+ * Récupère l'historique complet avec citations depuis le backend
+ * @param {string} conversationId - L'ID de la conversation
+ * @returns {Promise<Object>} - L'historique complet avec citations
+ */
+export const getFullConversationHistory = async (conversationId) => {
+  try {
+    const response = await fetch(`${API_URL}/history/${conversationId}/full`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      debugLog("Full conversation history with citations", data);
+      return data;
+    } else {
+      console.warn('Full history endpoint not available, falling back to standard history');
+      return null;
+    }
+  } catch (error) {
+    console.warn('Could not fetch full history:', error);
+    return null;
   }
 };
