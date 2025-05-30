@@ -174,118 +174,116 @@ const AdminDocumentManager = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 p-6 shadow-lg rounded-lg">
-        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Télécharger des documents</h2>
-        
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
-          </div>
-        )}
-        
-        {successMessage && (
-          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-            {successMessage}
-          </div>
-        )}
-        
-        <div className="mb-4">
-          <label 
-            htmlFor="file-upload" 
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-          >
-            Sélectionner des documents (PDF, DOCX, TXT)
-          </label>
-          <input
-            ref={fileInputRef}
-            id="file-upload"
-            name="file-upload"
-            type="file"
-            multiple
-            accept=".pdf,.doc,.docx,.txt"
-            onChange={handleFileUpload}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#16698C] file:text-white hover:file:bg-[#0f516c]"
-            disabled={uploading}
-          />
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+            Gestion des documents sources
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            Ajoutez, supprimez ou réindexez les documents sources pour le système RAG.
+          </p>
         </div>
-        
-        {uploading && (
-          <div className="mb-4">
-            <div className="mb-1 text-sm font-medium flex justify-between">
-              <span>Progression</span>
-              <span>{uploadProgress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-              <div className="bg-[#16698C] h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
-            </div>
-          </div>
-        )}
-        
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleReindexDocuments}
-            disabled={reindexing || uploading}
-            className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#16698C] hover:bg-[#0f516c] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#16698C] disabled:opacity-50"
+        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            multiple
+            className="hidden"
+            id="file-upload"
+          />          <label
+            htmlFor="file-upload"
+            className="flex-grow md:flex-grow-0 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-md cursor-pointer text-center transition duration-150 ease-in-out"
           >
-            {reindexing ? 'Réindexation...' : 'Réindexer tous les documents'}
+            {uploading ? 'Téléchargement...' : 'Ajouter des documents'}
+          </label>
+          
+          <button
+            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-md transition duration-150 ease-in-out"
+            onClick={handleReindexDocuments}
+            disabled={reindexing || documents.length === 0}
+          >
+            {reindexing ? 'Réindexation...' : 'Réindexer les documents'}
           </button>
         </div>
       </div>
       
-      <div className="bg-white dark:bg-gray-800 p-6 shadow-lg rounded-lg">
-        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Documents disponibles</h2>
-        
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16698C]"></div>
-            <span className="ml-3 text-gray-700 dark:text-gray-300">Chargement des documents...</span>
+      {/* Message de succès avec animation */}
+      {successMessage && (
+        <div className="mb-4 p-3 bg-green-100 border-l-4 border-green-500 text-green-700 animate-fadeIn">
+          <div className="flex items-center">
+            <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <p>{successMessage}</p>
           </div>
-        ) : documents.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Document</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Taille</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date d'ajout</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {documents.map((doc, index) => (
-                  <tr key={doc.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <span className="text-xl mr-2">{getFileIcon(doc.filename)}</span>
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-xs">
-                          {doc.filename}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatFileSize(doc.size)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {doc.upload_date ? new Date(doc.upload_date).toLocaleString() : 'N/A'}
-                    </td>                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleDeleteDocument(doc.id || doc.filename)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        Supprimer
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        </div>
+      )}
+      
+      {/* Message d'erreur avec animation */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 animate-fadeIn">
+          <div className="flex items-center">
+            <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <p>{error}</p>
           </div>
-        ) : (
-          <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-            Aucun document disponible. Téléchargez des documents pour commencer.
+        </div>
+      )}
+      
+      {/* Barre de progression d'upload avec animation */}
+      {uploading && (
+        <div className="mb-4">
+          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+            <div 
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-in-out" 
+              style={{ width: `${uploadProgress}%` }}
+            ></div>
           </div>
-        )}
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 text-right">{uploadProgress}% téléchargé</p>
+        </div>
+      )}
+      
+      {/* Tableau des documents */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Document</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Taille</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date d'ajout</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            {documents.map((doc, index) => (
+              <tr key={doc.id}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <span className="text-xl mr-2">{getFileIcon(doc.filename)}</span>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-xs">
+                      {doc.filename}
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  {formatFileSize(doc.size)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  {doc.upload_date ? new Date(doc.upload_date).toLocaleString() : 'N/A'}
+                </td>                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button
+                    onClick={() => handleDeleteDocument(doc.id || doc.filename)}
+                    className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                  >
+                    Supprimer
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -6,35 +6,46 @@ import rehypeSanitize from 'rehype-sanitize';
 
 // Fonction pour prétraiter le texte des réponses RAG
 const preprocessRagText = (text) => {
-  if (!text) return '';
+  // Vérifier si text est une chaîne valide
+  if (!text || typeof text !== 'string') return '';
   
-  // Améliorer le formatage des titres (### et ##)
-  let processedText = text
-    // Améliorer les titres avec ###
-    .replace(/^### (.+)$/gm, '### $1')
-    // Améliorer les titres avec ##
-    .replace(/^## (.+)$/gm, '## $1')
-    // Améliorer la mise en forme des citations pertinentes
-    .replace(/\*\*Citation pertinente :\*\*(.*?)$/gm, '> **Citation pertinente :** $1')
-    // Améliorer la mise en forme des conclusions
-    .replace(/^### Conclusion/gm, '\n### 📝 Conclusion')
-    .replace(/^## Conclusion/gm, '\n## 📝 Conclusion')
-    // Améliorer les sections
-    .replace(/\*\*([^:]+):\*\*/g, '**$1 :**');
-  
-  return processedText;
+  try {
+    // Améliorer le formatage des titres (### et ##)
+    let processedText = text
+      // Améliorer les titres avec ###
+      .replace(/^### (.+)$/gm, '### $1')
+      // Améliorer les titres avec ##
+      .replace(/^## (.+)$/gm, '## $1')
+      // Améliorer la mise en forme des citations pertinentes
+      .replace(/\*\*Citation pertinente :\*\*(.*?)$/gm, '> **Citation pertinente :** $1')
+      // Améliorer la mise en forme des conclusions
+      .replace(/^### Conclusion/gm, '\n### 📝 Conclusion')
+      .replace(/^## Conclusion/gm, '\n## 📝 Conclusion')
+      // Améliorer les sections
+      .replace(/\*\*([^:]+):\*\*/g, '**$1 :**');
+    
+    return processedText;
+  } catch (error) {
+    console.error('Erreur lors du prétraitement du texte RAG:', error);
+    return typeof text === 'string' ? text : '';
+  }
 };
 
 export default function Message({ text, sender, sources = [], citations = [] }) {
   const isUser = sender === "user";
   
+  // Normaliser les props pour éviter les erreurs
+  const normalizedText = typeof text === 'string' ? text : '';
+  const normalizedSources = Array.isArray(sources) ? sources : [];
+  const normalizedCitations = Array.isArray(citations) ? citations : [];
+  
   // Debug pour tracer les citations
   console.group(`📨 Message Component - ${sender}`);
-  console.log('Text:', text?.substring(0, 100) + '...');
-  console.log('Sources received:', sources);
-  console.log('Citations received:', citations);
-  console.log('Citations length:', citations?.length);
-  console.log('Citations valid count:', citations?.filter(c => c && (c.content || c.text || c.excerpt))?.length);
+  console.log('Text:', normalizedText?.substring(0, 100) + '...');
+  console.log('Sources received:', normalizedSources);
+  console.log('Citations received:', normalizedCitations);
+  console.log('Citations length:', normalizedCitations?.length);
+  console.log('Citations valid count:', normalizedCitations?.filter(c => c && (c.content || c.text || c.excerpt))?.length);
   console.groupEnd();
   
   return (
@@ -46,39 +57,40 @@ export default function Message({ text, sender, sources = [], citations = [] }) 
             : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
         }`}
       >        {isUser ? (
-          <div className="whitespace-pre-wrap">{text}</div>
-        ) : (
-          <div className="markdown-content">
-            {/* Prétraitement du texte pour améliorer le rendu des titres et sections */}
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm, remarkBreaks]}
-              rehypePlugins={[rehypeRaw, rehypeSanitize]}
-              components={{
-                h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4 border-b pb-1 border-gray-200 dark:border-gray-600" {...props} />,
-                h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-3 mt-4 text-[#16698C] dark:text-[#4FB3E8]" {...props} />,
-                h3: ({node, ...props}) => <h3 className="text-md font-bold mb-2 mt-3 text-[#16698C] dark:text-[#4FB3E8]" {...props} />,
-                h4: ({node, ...props}) => <h4 className="text-base font-semibold mb-2 mt-3" {...props} />,
-                p: ({node, ...props}) => <p className="mb-3" {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
-                ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
-                li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                strong: ({node, ...props}) => <strong className="font-bold text-[#16698C] dark:text-[#4FB3E8]" {...props} />,
-                em: ({node, ...props}) => <em className="italic" {...props} />,
-                code: ({node, inline, ...props}) => 
-                  inline ? 
-                    <code className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded text-sm" {...props} /> : 
-                    <pre className="bg-gray-200 dark:bg-gray-600 p-3 mb-3 rounded text-sm overflow-auto">{props.children}</pre>,
-                blockquote: ({node, ...props}) => (
-                  <blockquote className="border-l-4 border-[#16698C] dark:border-[#4FB3E8] pl-3 py-1 italic my-3 bg-blue-50 dark:bg-blue-900/20 rounded-r" {...props} />
-                ),
-                hr: ({node, ...props}) => <hr className="my-4 border-gray-300 dark:border-gray-600" {...props} />
-              }}
-            >              {/* Prétraitement du texte pour améliorer le format RAG */}
-              {preprocessRagText(text)}
-            </ReactMarkdown>
+          <div className="whitespace-pre-wrap">{normalizedText}</div>
+        ) : (<div className="markdown-content">            {/* Prétraitement du texte pour améliorer le rendu des titres et sections */}
+            {normalizedText !== '' ? (
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm, remarkBreaks]}
+                rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                components={{
+                  h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4 border-b pb-1 border-gray-200 dark:border-gray-600" {...props} />,
+                  h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-3 mt-4 text-[#16698C] dark:text-[#4FB3E8]" {...props} />,
+                  h3: ({node, ...props}) => <h3 className="text-md font-bold mb-2 mt-3 text-[#16698C] dark:text-[#4FB3E8]" {...props} />,
+                  h4: ({node, ...props}) => <h4 className="text-base font-semibold mb-2 mt-3" {...props} />,
+                  p: ({node, ...props}) => <p className="mb-3" {...props} />,
+                  ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+                  ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
+                  li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                  strong: ({node, ...props}) => <strong className="font-bold text-[#16698C] dark:text-[#4FB3E8]" {...props} />,
+                  em: ({node, ...props}) => <em className="italic" {...props} />,
+                  code: ({node, inline, ...props}) => 
+                    inline ? 
+                      <code className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded text-sm" {...props} /> : 
+                      <pre className="bg-gray-200 dark:bg-gray-600 p-3 mb-3 rounded text-sm overflow-auto">{props.children}</pre>,
+                  blockquote: ({node, ...props}) => (
+                    <blockquote className="border-l-4 border-[#16698C] dark:border-[#4FB3E8] pl-3 py-1 italic my-3 bg-blue-50 dark:bg-blue-900/20 rounded-r" {...props} />
+                  ),
+                  hr: ({node, ...props}) => <hr className="my-4 border-gray-300 dark:border-gray-600" {...props} />
+                }}              >
+                {preprocessRagText(normalizedText)}
+              </ReactMarkdown>
+            ) : (
+              <p className="text-gray-500 italic">Message vide ou format non supporté</p>
+            )}
           </div>
-        )}{/* Afficher les sources si elles existent et ne sont pas vides */}
-        {sources && sources.length > 0 && sources.some(source => source && (source.title || source.document_name || source.excerpt)) && (
+        )}        {/* Afficher les sources si elles existent et ne sont pas vides */}
+        {normalizedSources.length > 0 && normalizedSources.some(source => source && (source.title || source.document_name || source.excerpt)) && (
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
             <div className="flex items-center gap-2 mb-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-400">
@@ -91,7 +103,7 @@ export default function Message({ text, sender, sources = [], citations = [] }) 
               <p className="text-xs font-semibold text-green-600 dark:text-green-400">Sources documentaires</p>
             </div>
             <div className="space-y-2">
-              {sources.map((source, index) => (
+              {normalizedSources.map((source, index) => (
                 <div key={index} className="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 p-3 rounded-r-lg">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
@@ -143,8 +155,8 @@ export default function Message({ text, sender, sources = [], citations = [] }) 
               ))}
             </div>
           </div>
-        )}          {/* Afficher les citations si elles existent et ne sont pas vides */}
-        {citations && citations.length > 0 && citations.some(citation => citation && (citation.content || citation.text || citation.excerpt)) && (
+        )}        {/* Afficher les citations si elles existent et ne sont pas vides */}
+        {normalizedCitations.length > 0 && normalizedCitations.some(citation => citation && (citation.content || citation.text || citation.excerpt)) && (
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
             <div className="flex items-center gap-2 mb-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 dark:text-blue-400">
@@ -154,7 +166,7 @@ export default function Message({ text, sender, sources = [], citations = [] }) 
               <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">Citations</p>
             </div>
             <div className="space-y-3">
-              {citations.map((citation, index) => (
+              {normalizedCitations.map((citation, index) => (
                 <div key={index} className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-3 rounded-r-lg">                  {/* Citation text */}
                   <blockquote className="text-sm italic text-gray-800 dark:text-gray-200 mb-2 leading-relaxed">
                     {(() => {
