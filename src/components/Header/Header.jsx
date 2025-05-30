@@ -4,6 +4,7 @@ import LogoJuridica from './LogoJuridica';
 import LogoModeSombre from './LogoModeSombre';
 import UserAvatar from './UserAvatar';
 import { cn } from "../../lib/utils";
+import { Shield } from "lucide-react";
 
 const Header = ({ className }) => {
     return (
@@ -17,8 +18,13 @@ const Header = ({ className }) => {
             </div>
             <div className="absolute left-1/2 transform -translate-x-1/2">
                 <LogoClient />
-            </div>
-            <div className="flex items-center gap-2 mr-4">
+            </div>            <div className="flex items-center gap-4 mr-4">
+                <a 
+                  href="/admin"
+                  className="flex items-center px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600"
+                >
+                  <span className="text-sm font-medium">Admin</span>
+                </a>
                 <LogoModeSombre />
                 <UserAvatar />
             </div>

@@ -16,7 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 
 export async function loginUser(email, password) {
-    const response = await fetch("http://localhost:8000/auth/login", {
+    const response = await fetch("http://localhost:8000/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ username: email, password }),

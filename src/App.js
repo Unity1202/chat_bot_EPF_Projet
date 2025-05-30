@@ -7,6 +7,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigat
 import { Sidebar } from "./components/Sidebar/Sidebar"
 import Header from "./components/Header/Header"
 import AppChat from "./components/Chat/AppChat"
+import AdminView from "./views/AdminView"
+import ProtectedAdminRoute from "./components/Admin/ProtectedAdminRoute"
 import { AuthProvider } from "./contexts/AuthContext"
 import { useAuth } from "./contexts/AuthContext";
 import { checkAuthentication } from "./Services/chatService";
@@ -105,11 +107,11 @@ const AuthenticatedApp = () => {
       </div>
     );
   }
-  
-  return (
+    return (
     <Routes>
       <Route path="/" element={<ChatContainer />} />
       <Route path="/chat/:conversationId" element={<ChatContainer />} />
+      <Route path="/admin" element={<ProtectedAdminRoute><AdminView /></ProtectedAdminRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

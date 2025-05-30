@@ -1,3 +1,30 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+
+// Fonction pour prétraiter le texte des réponses RAG
+const preprocessRagText = (text) => {
+  if (!text) return '';
+  
+  // Améliorer le formatage des titres (### et ##)
+  let processedText = text
+    // Améliorer les titres avec ###
+    .replace(/^### (.+)$/gm, '### $1')
+    // Améliorer les titres avec ##
+    .replace(/^## (.+)$/gm, '## $1')
+    // Améliorer la mise en forme des citations pertinentes
+    .replace(/\*\*Citation pertinente :\*\*(.*?)$/gm, '> **Citation pertinente :** $1')
+    // Améliorer la mise en forme des conclusions
+    .replace(/^### Conclusion/gm, '\n### 📝 Conclusion')
+    .replace(/^## Conclusion/gm, '\n## 📝 Conclusion')
+    // Améliorer les sections
+    .replace(/\*\*([^:]+):\*\*/g, '**$1 :**');
+  
+  return processedText;
+};
+
 export default function Message({ text, sender, sources = [], citations = [] }) {
   const isUser = sender === "user";
   
@@ -18,8 +45,39 @@ export default function Message({ text, sender, sources = [], citations = [] }) 
             ? "bg-[#16698C] text-white" 
             : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
         }`}
-      >
-        <div className="whitespace-pre-wrap">{text}</div>        {/* Afficher les sources si elles existent et ne sont pas vides */}
+      >        {isUser ? (
+          <div className="whitespace-pre-wrap">{text}</div>
+        ) : (
+          <div className="markdown-content">
+            {/* Prétraitement du texte pour améliorer le rendu des titres et sections */}
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm, remarkBreaks]}
+              rehypePlugins={[rehypeRaw, rehypeSanitize]}
+              components={{
+                h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4 border-b pb-1 border-gray-200 dark:border-gray-600" {...props} />,
+                h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-3 mt-4 text-[#16698C] dark:text-[#4FB3E8]" {...props} />,
+                h3: ({node, ...props}) => <h3 className="text-md font-bold mb-2 mt-3 text-[#16698C] dark:text-[#4FB3E8]" {...props} />,
+                h4: ({node, ...props}) => <h4 className="text-base font-semibold mb-2 mt-3" {...props} />,
+                p: ({node, ...props}) => <p className="mb-3" {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+                ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
+                li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                strong: ({node, ...props}) => <strong className="font-bold text-[#16698C] dark:text-[#4FB3E8]" {...props} />,
+                em: ({node, ...props}) => <em className="italic" {...props} />,
+                code: ({node, inline, ...props}) => 
+                  inline ? 
+                    <code className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded text-sm" {...props} /> : 
+                    <pre className="bg-gray-200 dark:bg-gray-600 p-3 mb-3 rounded text-sm overflow-auto">{props.children}</pre>,
+                blockquote: ({node, ...props}) => (
+                  <blockquote className="border-l-4 border-[#16698C] dark:border-[#4FB3E8] pl-3 py-1 italic my-3 bg-blue-50 dark:bg-blue-900/20 rounded-r" {...props} />
+                ),
+                hr: ({node, ...props}) => <hr className="my-4 border-gray-300 dark:border-gray-600" {...props} />
+              }}
+            >              {/* Prétraitement du texte pour améliorer le format RAG */}
+              {preprocessRagText(text)}
+            </ReactMarkdown>
+          </div>
+        )}{/* Afficher les sources si elles existent et ne sont pas vides */}
         {sources && sources.length > 0 && sources.some(source => source && (source.title || source.document_name || source.excerpt)) && (
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
             <div className="flex items-center gap-2 mb-2">

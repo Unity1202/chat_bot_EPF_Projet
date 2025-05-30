@@ -137,7 +137,7 @@ export const sendQuery = async (query, conversationId = null, options = {}) => {
  */
 export const checkAuthentication = async () => {
   try {
-    const response = await fetch('http://localhost:8000/auth/check-auth', {
+    const response = await fetch('http://localhost:8000/api/auth/check-auth', {
       method: 'GET',
       credentials: 'include',
       headers: {
