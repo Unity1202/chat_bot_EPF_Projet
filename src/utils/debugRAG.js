@@ -1,12 +1,3 @@
-/**
- * Utilitaires de debugging pour RAG
- */
-
-/**
- * Diagnostic complet des données RAG
- * @param {Object} data - Les données à analyser
- * @param {string} context - Le contexte du diagnostic
- */
 export const diagnoseRAGData = (data, context = 'Unknown') => {
   console.group(`🔬 RAG Diagnostic - ${context}`);
   
@@ -70,16 +61,18 @@ export const diagnoseRAGData = (data, context = 'Unknown') => {
   console.groupEnd();
 };
 
-/**
- * Tracer les transformations de données
- * @param {Object} original - Données originales
- * @param {Object} transformed - Données transformées
- * @param {string} operation - Nom de l'opération
- */
+
 export const traceDataTransformation = (original, transformed, operation) => {
   console.group(`🔄 Data Transformation - ${operation}`);
   console.log('Before:', original);
   console.log('After:', transformed);
+  
+  // Afficher les titres spécifiquement pour mieux déboguer
+  if (original && transformed) {
+    console.log('Title in Before:', original.title);
+    console.log('Title in After:', transformed.title);
+    console.log('Conversation ID in After:', transformed.conversation_id);
+  }
   
   // Comparer les citations spécifiquement
   const originalCitations = extractCitations(original);
@@ -92,11 +85,7 @@ export const traceDataTransformation = (original, transformed, operation) => {
   console.groupEnd();
 };
 
-/**
- * Extraire toutes les citations possibles d'un objet
- * @param {Object} data - Les données à analyser
- * @returns {Array} - Toutes les citations trouvées
- */
+
 export const extractCitations = (data) => {
   if (!data) return [];
   
@@ -139,16 +128,11 @@ export const extractCitations = (data) => {
   return citations.filter(citation => citation && (citation.content || citation.text || citation.excerpt));
 };
 
-/**
- * Vérifier la structure d'une réponse d'API
- * @param {Object} response - La réponse de l'API
- * @param {string} endpoint - Le nom de l'endpoint
- */
+
 export const validateAPIResponse = (response, endpoint) => {
   console.group(`✅ API Response Validation - ${endpoint}`);
-  
-  const expectedFields = {
-    'sendQuery': ['answer', 'sources', 'excerpts', 'conversation_id'],
+    const expectedFields = {
+    'sendQuery': ['answer', 'sources', 'excerpts', 'conversation_id', 'title'],
     'getConversationById': ['id', 'messages', 'title'],
     'message': ['id', 'text', 'sender', 'citations']
   };

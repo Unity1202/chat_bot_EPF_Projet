@@ -40,13 +40,13 @@ export default function Message({ text, sender, sources = [], citations = [] }) 
   const normalizedCitations = Array.isArray(citations) ? citations : [];
   
   // Debug pour tracer les citations
-  console.group(`📨 Message Component - ${sender}`);
+  /*console.group(`📨 Message Component - ${sender}`);
   console.log('Text:', normalizedText?.substring(0, 100) + '...');
   console.log('Sources received:', normalizedSources);
   console.log('Citations received:', normalizedCitations);
   console.log('Citations length:', normalizedCitations?.length);
   console.log('Citations valid count:', normalizedCitations?.filter(c => c && (c.content || c.text || c.excerpt))?.length);
-  console.groupEnd();
+  console.groupEnd(); */
   
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>

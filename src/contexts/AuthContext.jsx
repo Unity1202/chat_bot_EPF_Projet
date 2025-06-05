@@ -1,7 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { logout as apiLogout } from '../Services/authService';
 
 const AuthContext = createContext();
+
+// Créer un événement personnalisé pour la déconnexion
+const LOGOUT_EVENT_NAME = 'juridica-user-logout';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -55,13 +59,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = (userData) => {
     setUser(userData); // facultatif, selon l'usage dans le composant LoginDialog
-  };
-
-  const handleLogout = async () => {
+  };  const handleLogout = async () => {
     try {
       await apiLogout();
       setUser(null);
       console.log("Utilisateur déconnecté");
+      
+      // Déclencher un événement de déconnexion global
+      window.dispatchEvent(new Event(LOGOUT_EVENT_NAME));
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
     }

@@ -19,8 +19,24 @@ const ChatContainer = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const { isAuthenticated } = useAuth();
-  
-  // Vérifier l'authentification avant de charger la conversation
+    // Ajouter un écouteur d'événement pour la déconnexion
+  useEffect(() => {
+    const handleLogout = () => {
+      console.log("Événement de déconnexion détecté, redirection vers la page d'accueil");
+      if (conversationId) {
+        navigate('/');
+      }
+    };
+    
+    // Écouter l'événement de déconnexion
+    window.addEventListener('juridica-user-logout', handleLogout);
+    
+    // Nettoyer l'écouteur lors du démontage du composant
+    return () => {
+      window.removeEventListener('juridica-user-logout', handleLogout);
+    };
+  }, [conversationId, navigate]);
+    // Vérifier l'authentification avant de charger la conversation
   useEffect(() => {
     const verifyAuth = async () => {
       try {
@@ -34,18 +50,27 @@ const ChatContainer = () => {
           // Vérifier directement avec l'API pour être sûr
           const authStatus = await checkAuthentication();
           console.log("Statut d'authentification vérifié:", authStatus);
+          
+          // Si l'utilisateur n'est pas authentifié, rediriger vers la page d'accueil
+          if (!authStatus) {
+            console.log("Utilisateur non authentifié, redirection vers la page d'accueil");
+            navigate('/');
+          }
         }
       } catch (error) {
         console.error("Erreur lors de la vérification de l'authentification:", error);
+        // En cas d'erreur, rediriger également vers la page d'accueil
+        if (conversationId) {
+          navigate('/');
+        }
       } finally {
         setIsLoadingAuth(false);
       }
     };
     
     verifyAuth();
-  }, [conversationId, isAuthenticated]);
-  
-  // Fonction pour sélectionner une conversation
+  }, [conversationId, isAuthenticated, navigate]);
+    // Fonction pour sélectionner une conversation
   const handleConversationSelect = (conversationId) => {
     if (conversationId) {
       navigate(`/chat/${conversationId}`);
@@ -53,7 +78,6 @@ const ChatContainer = () => {
       navigate('/');
     }
   };
-  
   // Fonction pour rafraîchir la liste des conversations après une suppression
   const handleConversationDeleted = useCallback((deletedConversationId) => {
     setRefreshTrigger(prev => prev + 1);
@@ -63,16 +87,30 @@ const ChatContainer = () => {
       navigate('/'); // Rediriger vers la page d'accueil
     }
   }, [conversationId, navigate]);
+  
+  // État pour stocker les informations de la conversation mise à jour
+  const [updatedConversation, setUpdatedConversation] = useState(null);
+  
+  // Fonction pour mettre à jour la conversation en temps réel
+  const handleConversationUpdated = useCallback((convId, title) => {
+    console.log(`Titre de conversation mis à jour: ${title} pour l'ID ${convId}`);
+    
+    // Stocker les informations de la conversation mise à jour
+    setUpdatedConversation({ id: convId, title: title });
+    
+    // Également déclencher un refresh complet pour assurer la cohérence
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   return (
     <>
       <Header />
-      <div className="flex flex-1 relative">
-        <Sidebar 
+      <div className="flex flex-1 relative">        <Sidebar 
           onConversationSelect={handleConversationSelect}
           refreshTrigger={refreshTrigger}
           activeConversationId={conversationId}
-        />        <main className="flex-1">
+          updatedConversation={updatedConversation}
+        /><main className="flex-1">
           {isLoadingAuth && conversationId ? (
             <div className="flex justify-center items-center h-screen">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16698C]"></div>
@@ -82,10 +120,10 @@ const ChatContainer = () => {
             <div className="flex flex-col">
               
               
-              <div className="flex-1">
-                <AppChat 
+              <div className="flex-1">                <AppChat 
                   conversationId={conversationId}
                   onConversationDeleted={handleConversationDeleted}
+                  onConversationUpdated={handleConversationUpdated}
                 />
               </div>
             </div>

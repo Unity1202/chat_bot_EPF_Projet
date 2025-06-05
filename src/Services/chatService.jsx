@@ -13,7 +13,7 @@ const API_URL = 'http://localhost:8000/api/chat';
  * @param {string} context - Le contexte du log
  * @param {Object} data - Les données à logger
  */
-const debugLog = (context, data) => {
+/*const debugLog = (context, data) => {
   console.group(`🔍 DEBUG: ${context}`);
   console.log('Data:', JSON.stringify(data, null, 2));
   if (data && typeof data === 'object') {
@@ -24,7 +24,7 @@ const debugLog = (context, data) => {
     if (data.rag_excerpts) console.log('RAG excerpts found:', data.rag_excerpts);
   }
   console.groupEnd();
-};
+};*/
 
 /**
  * Envoie une requête au backend et récupère la réponse
@@ -107,21 +107,21 @@ export const sendQuery = async (query, conversationId = null, options = {}) => {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.detail || `Erreur API: ${response.status}`);
     }    const data = await response.json();
-    debugLog("Response from sendQuery", data);
-    diagnoseRAGData(data, "sendQuery Response");
+   // debugLog("Response from sendQuery", data);
+   // diagnoseRAGData(data, "sendQuery Response");
     validateAPIResponse(data, "sendQuery");
-    
-    // Normaliser la réponse pour correspondre au format attendu par le frontend
-    // Backend renvoie: answer, sources, excerpts, conversation_id
-    // Frontend attend: answer, sources, citations
+      // Normaliser la réponse pour correspondre au format attendu par le frontend
+    // Backend renvoie: answer, sources, excerpts, conversation_id, title
+    // Frontend attend: answer, sources, citations, conversation_id, title
     const normalizedData = {
       answer: data.answer,
       sources: data.sources || [],
       citations: data.excerpts || data.citations || data.context_excerpts || data.rag_excerpts || [], // Mapper toutes les variantes
-      conversation_id: data.conversation_id
+      conversation_id: data.conversation_id,
+      title: data.title // Conserver le titre s'il est présent dans la réponse
     };
     
-    debugLog("Normalized data for frontend", normalizedData);
+    //debugLog("Normalized data for frontend", normalizedData);
     traceDataTransformation(data, normalizedData, "sendQuery Normalization");
     
     return normalizedData;
@@ -245,13 +245,13 @@ export const getConversationById = async (conversationId) => {
       return null;
     }
     
-    debugLog("Starting getConversationById", { conversationId });
+    //debugLog("Starting getConversationById", { conversationId });
     
     // 1. Essayer d'abord de récupérer l'historique complet avec citations depuis le backend
     try {
       const fullHistory = await getFullConversationHistory(conversationId);
       if (fullHistory && fullHistory.messages) {
-        debugLog("Using full conversation history from backend", fullHistory);
+        //debugLog("Using full conversation history from backend", fullHistory);
         
         // Récupérer les métadonnées de la conversation
         const conversationInfo = await getConversationMetadata(conversationId);
@@ -261,7 +261,7 @@ export const getConversationById = async (conversationId) => {
           title: conversationInfo?.title || fullHistory.title || `Conversation #${conversationId.substring(0, 8)}...`,
           category: assignCategory(conversationInfo?.category || fullHistory.category || 'other'),
           messages: fullHistory.messages.map((msg, index) => {
-            debugLog(`Processing message ${index} from full history`, msg);
+           // debugLog(`Processing message ${index} from full history`, msg);
             
             const transformedMessage = {
               id: msg.id || `msg-${index}-${Date.now()}`,
@@ -283,7 +283,7 @@ export const getConversationById = async (conversationId) => {
           conversationId: conversationId
         };
         
-        debugLog("Successfully transformed full history conversation", transformedConversation);
+        //debugLog("Successfully transformed full history conversation", transformedConversation);
         return transformedConversation;
       }
     } catch (error) {
@@ -321,8 +321,8 @@ export const getConversationById = async (conversationId) => {
       }
       
       const data = await response.json();
-      debugLog("Standard conversation history response", data);
-      diagnoseRAGData(data, "getConversationById Standard Response");
+      //debugLog("Standard conversation history response", data);
+      //diagnoseRAGData(data, "getConversationById Standard Response");
       validateAPIResponse(data, "getConversationById");
       
       // Récupérer les métadonnées de la conversation
@@ -331,7 +331,7 @@ export const getConversationById = async (conversationId) => {
       // Transformer l'historique et enrichir chaque message avec ses citations du backend
       const transformedMessages = await Promise.all(
         (data.history || []).map(async (msg, index) => {
-          debugLog(`Processing message ${index} from standard history`, msg);
+          //debugLog(`Processing message ${index} from standard history`, msg);
           
           let citations = msg.citations || msg.excerpts || msg.context_excerpts || msg.rag_excerpts || [];
           
@@ -341,7 +341,7 @@ export const getConversationById = async (conversationId) => {
               const backendCitations = await getMessageCitations(conversationId, msg.id);
               if (backendCitations && backendCitations.length > 0) {
                 citations = backendCitations;
-                debugLog(`Enriched message ${msg.id} with ${citations.length} citations from backend`, citations);
+                //debugLog(`Enriched message ${msg.id} with ${citations.length} citations from backend`, citations);
               }
             } catch (error) {
               console.warn(`Could not enrich message ${msg.id} with citations:`, error);
@@ -375,7 +375,7 @@ export const getConversationById = async (conversationId) => {
       };
       
       traceDataTransformation(data, transformedConversation, "Standard Conversation Transformation");
-      debugLog("Successfully transformed standard history conversation", transformedConversation);
+     // debugLog("Successfully transformed standard history conversation", transformedConversation);
       
       return transformedConversation;
       
@@ -531,10 +531,14 @@ export const createNewConversation = async (query = "Nouvelle conversation") => 
 
     const data = await response.json();
     console.log("Nouvelle conversation créée :", data);
-    
-    // S'assurer que l'ID de conversation est disponible
+      // S'assurer que l'ID de conversation est disponible
     if (!data.conversation_id) {
       throw new Error("ID de conversation non trouvé dans la réponse");
+    }
+    
+    // Si le backend n'a pas retourné de titre, utiliser un titre par défaut
+    if (!data.title) {
+      data.title = `Conversation #${data.conversation_id.substring(0, 8)}...`;
     }
     
     return data;
@@ -562,7 +566,7 @@ export const getMessageCitations = async (conversationId, messageId) => {
     
     if (response.ok) {
       const data = await response.json();
-      debugLog(`Citations for message ${messageId}`, data);
+      //debugLog(`Citations for message ${messageId}`, data);
       return data.citations || data.excerpts || [];
     } else {
       console.warn(`No citations endpoint available for message ${messageId}`);
@@ -591,7 +595,7 @@ export const getFullConversationHistory = async (conversationId) => {
     
     if (response.ok) {
       const data = await response.json();
-      debugLog("Full conversation history with citations", data);
+      //debugLog("Full conversation history with citations", data);
       return data;
     } else {
       console.warn('Full history endpoint not available, falling back to standard history');

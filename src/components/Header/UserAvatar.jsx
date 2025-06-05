@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import LoginDialog from './LoginDialog';
 import LogoutMenu from './LogoutMenu';
 import { Avatar, AvatarImage, AvatarFallback } from "../../components/ui/avatar";
@@ -6,7 +7,15 @@ import { User } from "lucide-react";
 import { useAuth } from '../../contexts/AuthContext';
 
 const UserAvatar = () => {
+  const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+  
+  // Fonction de déconnexion avec redirection
+  const handleLogout = async () => {
+    await logout();
+    // Redirection vers la page d'accueil après déconnexion
+    navigate('/');
+  };
 
   const getInitials = () => {
     if (!user) return 'U';
@@ -50,9 +59,8 @@ const UserAvatar = () => {
       </Avatar>
     );
   };
-
   return isAuthenticated ? (
-    <LogoutMenu onLogout={logout} user={user}>
+    <LogoutMenu onLogout={handleLogout} user={user}>
       {renderAvatar()}
     </LogoutMenu>
   ) : (

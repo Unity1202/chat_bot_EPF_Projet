@@ -12,7 +12,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useSearch } from "../../hooks/useSearch";
 import { useFilter } from "../../hooks/useFilter";
 
-export function Sidebar({ onConversationSelect, refreshTrigger = 0, activeConversationId }) {
+export function Sidebar({ onConversationSelect, refreshTrigger = 0, activeConversationId, updatedConversation = null }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -21,7 +21,6 @@ export function Sidebar({ onConversationSelect, refreshTrigger = 0, activeConver
 
   const { searchQuery, setSearchQuery, filteredItems: searchFilteredItems } = useSearch(conversations);
   const { selectedFilter, setSelectedFilter, filteredItems: categoryFilteredItems } = useFilter(searchFilteredItems);
-
   // Charger les conversations lorsque l'utilisateur est connecté ou quand refreshTrigger change
   useEffect(() => {
     const loadConversations = async () => {
@@ -45,6 +44,21 @@ export function Sidebar({ onConversationSelect, refreshTrigger = 0, activeConver
   
     loadConversations();
   }, [isAuthenticated, refreshTrigger]);
+  
+  // Mettre à jour une conversation spécifique lorsque updatedConversation est fourni
+  useEffect(() => {
+    if (updatedConversation && updatedConversation.id && updatedConversation.title) {
+      setConversations(prevConversations => {
+        return prevConversations.map(conv => {
+          if (conv.id === updatedConversation.id) {
+            console.log(`Mise à jour du titre de la conversation ${conv.id} : ${updatedConversation.title}`);
+            return { ...conv, title: updatedConversation.title };
+          }
+          return conv;
+        });
+      });
+    }
+  }, [updatedConversation]);
 
   // Fonction pour démarrer une nouvelle conversation
   const handleNewChat = async () => {

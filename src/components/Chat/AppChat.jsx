@@ -1,13 +1,43 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ChatBox from "./ChatBox";
 import InputBox from "./InputBox";
-import { sendQuery, getConversationById, deleteConversation } from "../../Services/chatService";
+import { sendQuery, getConversationById, deleteConversation, checkAuthentication } from "../../Services/chatService";
+import { useAuth } from "../../contexts/AuthContext";
 
-export default function AppChat({ conversationId = null, onConversationDeleted }) {  const [messages, setMessages] = useState([]);
+export default function AppChat({ conversationId = null, onConversationDeleted, onConversationUpdated }) {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const [messages, setMessages] = useState([]);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [currentConversationTitle, setCurrentConversationTitle] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [shouldNavigateToNewConversation, setShouldNavigateToNewConversation] = useState(false);
+
+  // Vérifier l'authentification lorsque l'utilisateur accède à une conversation
+  useEffect(() => {
+    const verifyAuthentication = async () => {
+      if (conversationId) {
+        const isUserAuthenticated = await checkAuthentication();
+        if (!isUserAuthenticated) {
+          console.log("AppChat: Utilisateur non authentifié tentant d'accéder à une conversation, redirection vers l'accueil");
+          navigate('/');
+        }
+      }
+    };
+
+    verifyAuthentication();
+  }, [conversationId, navigate]);
+
+  // Effet pour gérer la navigation lorsqu'une nouvelle conversation est créée automatiquement
+  useEffect(() => {
+    if (shouldNavigateToNewConversation) {
+      console.log(`Navigation vers la nouvelle conversation: ${shouldNavigateToNewConversation}`);
+      navigate(`/chat/${shouldNavigateToNewConversation}`);
+      setShouldNavigateToNewConversation(null);
+    }
+  }, [shouldNavigateToNewConversation, navigate]);
 
 // Dans useEffect qui charge la conversation
 useEffect(() => {
@@ -74,14 +104,30 @@ useEffect(() => {
       console.log("Options RAG:", options);
 
       const response = await sendQuery(text, currentConversationId, options);
-
+      
+      // Vérifier si une nouvelle conversation a été créée
       if (response.conversation_id) {
+        const newConversationCreated = !currentConversationId && response.conversation_id;
         setCurrentConversationId(response.conversation_id);
+        
+        // Si une nouvelle conversation a été créée automatiquement, marquer pour naviguer vers elle
+        if (newConversationCreated) {
+          console.log(`Nouvelle conversation créée automatiquement avec ID: ${response.conversation_id}`);
+          setShouldNavigateToNewConversation(response.conversation_id);
+        }
       }
       
       if (response.title) {
+        console.log(`Titre reçu du backend: ${response.title}`);
         setCurrentConversationTitle(response.title);
-      }      // Traitement amélioré de la réponse pour RAG avec support multi-format
+        // Notifier le parent que la conversation a été mise à jour (titre modifié)
+        if (onConversationUpdated) {
+          console.log(`Appel de onConversationUpdated avec: ID=${response.conversation_id}, Title=${response.title}`);
+          onConversationUpdated(response.conversation_id, response.title);
+        }
+      }
+
+      // Traitement amélioré de la réponse pour RAG avec support multi-format
       const botReply = {
         id: Date.now() + 1,
         text: response.answer,
