@@ -1,83 +1,111 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Sidebar as UISidebar,
   SidebarContent
 } from "../ui/sidebar";
 import SidebarHeader from "./SidebarHeader";
 import ConversationList from "./ConversationList";
+import { getConversationHistory, deleteConversation, createNewConversation } from '../../Services/chatService';
+
 import { ScrollArea } from "../ui/scroll-area";
+import { useAuth } from "../../contexts/AuthContext";
 import { useSearch } from "../../hooks/useSearch";
 import { useFilter } from "../../hooks/useFilter";
 
-// conversations fictives pour tester le formatage
-const initialConversations = [
-  {
-    id: 1,
-    title: "Conversation d'aujourd'hui",
-    preview: "Test du formatage pour aujourd'hui",
-    date: new Date().toISOString(),
-    category: 'treasury'
-  },
-  {
-    id: 2,
-    title: "Conversation d'hier",
-    preview: "Test du formatage pour hier",
-    date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    category: 'organisational'
-  },
-  {
-    id: 3,
-    title: "Conversation d'il y a 3 jours",
-    preview: "Test du formatage pour il y a 3 jours",
-    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'other'
-  },
-  {
-    id: 4,
-    title: "Conversation de la semaine dernière",
-    preview: "Test du formatage pour la semaine dernière",
-    date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'treasury'
-  },
-  {
-    id: 5,
-    title: "Conversation de ce mois",
-    preview: "Test du formatage pour ce mois",
-    date: "2025-03-05T10:30:00.000Z",
-    category: 'organisational'
-  },
-  {
-    id: 6,
-    title: "Conversation du mois dernier",
-    preview: "Test du formatage pour le mois dernier",
-    date: "2025-02-15T10:30:00.000Z",
-    category: 'other'
-  },
-  {
-    id: 7,
-    title: "Conversation de janvier",
-    preview: "Test du formatage pour un mois spécifique",
-    date: "2025-01-15T10:30:00.000Z",
-    category: 'treasury'
-  },
-  {
-    id: 8,
-    title: "Conversation de l'année dernière",
-    preview: "Test du formatage pour l'année dernière",
-    date: "2024-12-25T10:30:00.000Z",
-    category: 'organisational'
-  }
-];
+export function Sidebar({ onConversationSelect, refreshTrigger = 0, activeConversationId }) {
+  const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const { isAuthenticated } = useAuth();
+  const [filter] = useState(null);
 
-export function Sidebar() {
-  const [conversations, setConversations] = useState(initialConversations);
   const { searchQuery, setSearchQuery, filteredItems: searchFilteredItems } = useSearch(conversations);
   const { selectedFilter, setSelectedFilter, filteredItems: categoryFilteredItems } = useFilter(searchFilteredItems);
 
-  const handleDelete = (id) => {
-    setConversations(prevConversations => 
-      prevConversations.filter(conv => conv.id !== id)
+  // Charger les conversations lorsque l'utilisateur est connecté ou quand refreshTrigger change
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (isAuthenticated) {
+        setLoading(true);
+        setError(null);
+  
+        try {
+          const historicConversations = await getConversationHistory();
+          setConversations(historicConversations);
+        } catch (error) {
+          console.error("Erreur lors du chargement des conversations :", error);
+          setError("Impossible de charger l'historique des conversations");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setConversations([]);
+      }
+    };
+  
+    loadConversations();
+  }, [isAuthenticated, refreshTrigger]);
+
+  // Fonction pour démarrer une nouvelle conversation
+  const handleNewChat = async () => {
+    try {
+      const newConversation = await createNewConversation();
+      console.log("Nouvelle conversation créée avec ID:", newConversation.conversation_id);
+      
+      if (newConversation.conversation_id && onConversationSelect) {
+        onConversationSelect(newConversation.conversation_id);
+
+        // Rafraîchir la liste des conversations pour afficher la nouvelle
+        const historicConversations = await getConversationHistory();
+        setConversations(historicConversations);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la création d'une nouvelle conversation :", error);
+    }
+  };
+
+  // Fonction pour supprimer une conversation
+  const handleDeleteConversation = async (conversationId) => {
+    try {
+      setLoading(true);
+      const success = await deleteConversation(conversationId);
+      if (success) {
+        // Mettre à jour la liste locale
+        setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+        
+        // Si c'était la conversation active, notifier le parent
+        if (activeConversationId === conversationId) {
+          onConversationSelect(null);
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      setError("Échec de la suppression de la conversation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Version sans useMemo pour éviter l'erreur
+  let filteredConversations = conversations;
+  
+  if (filter) {
+    filteredConversations = filteredConversations.filter(conv => conv.category === filter);
+  }
+  
+  if (searchQuery) {
+    const searchLower = searchQuery.toLowerCase();
+    filteredConversations = filteredConversations.filter(conv => 
+      conv.title.toLowerCase().includes(searchLower) || 
+      conv.preview.toLowerCase().includes(searchLower)
     );
+  }
+
+  // Fonction pour sélectionner une conversation existante
+  const handleSelectConversation = (conversationId) => {
+    if (onConversationSelect) {
+      onConversationSelect(conversationId);
+    }
   };
 
   return (
@@ -88,6 +116,7 @@ export function Sidebar() {
             selectedFilter={selectedFilter} 
             setSelectedFilter={setSelectedFilter}
             onSearch={setSearchQuery}
+            onNewChat={handleNewChat}
           />
         </div>
         <div className="flex-1 overflow-hidden group">
@@ -97,11 +126,29 @@ export function Sidebar() {
               className="transition-opacity duration-300"
               type="hover"
             >
-              <ConversationList 
-                conversations={categoryFilteredItems}
-                searchQuery={searchQuery}
-                onDelete={handleDelete}
-              />
+              {loading ? (
+                <div className="flex justify-center items-center p-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#16698C]"></div>
+                </div>
+              ) : error ? (
+                <div className="p-4 text-center text-red-500 text-sm">
+                  {error}
+                </div>
+              ) : conversations.length === 0 ? (
+                <div className="p-4 text-center text-gray-400 text-sm">
+                  {isAuthenticated 
+                    ? "Aucune conversation trouvée. Commencez une nouvelle conversation !" 
+                    : "Connectez-vous pour voir votre historique de conversations"}
+                </div>
+              ) : (
+                <ConversationList 
+                  conversations={categoryFilteredItems}
+                  searchQuery={searchQuery}
+                  onSelectConversation={handleSelectConversation}
+                  onDeleteConversation={handleDeleteConversation}
+                  activeConversationId={activeConversationId}
+                />
+              )}
             </ScrollArea>
           </div>
         </div>

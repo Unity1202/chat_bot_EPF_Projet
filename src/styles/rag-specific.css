@@ -1,0 +1,54 @@
+/* Styles spécifiques pour les éléments de structure typique des réponses RAG */
+
+/* Amélioration visuelle des sections ### */
+.markdown-content h3 {
+  padding-left: 0.5rem;
+  border-left: 3px solid #16698C;
+}
+
+/* Amélioration visuelle pour les listes */
+.markdown-content ul li::before,
+.markdown-content ol li::before {
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+/* Amélioration du texte en gras pour les termes clés */
+.markdown-content strong {
+  color: #16698C;
+  font-weight: 700;
+}
+
+/* Conteneurs de section pour regrouper visuellement le contenu */
+.markdown-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed rgba(128, 128, 128, 0.2);
+}
+
+.markdown-section:last-child {
+  border-bottom: none;
+}
+
+/* Personnalisation pour le mode sombre */
+.dark .markdown-content strong {
+  color: #4FB3E8;
+}
+
+.dark .markdown-content h3 {
+  border-left-color: #4FB3E8;
+}
+
+/* Style particulier pour les citations pertinentes */
+.citation-pertinente {
+  background-color: rgba(22, 105, 140, 0.1);
+  border-left: 3px solid #16698C;
+  padding: 0.8rem;
+  margin: 1rem 0;
+  border-radius: 0 0.3rem 0.3rem 0;
+}
+
+.dark .citation-pertinente {
+  background-color: rgba(79, 179, 232, 0.1);
+  border-left-color: #4FB3E8;
+}

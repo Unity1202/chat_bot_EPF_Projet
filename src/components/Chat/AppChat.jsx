@@ -1,53 +1,205 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ChatBox from "./ChatBox";
 import InputBox from "./InputBox";
+import { sendQuery, getConversationById, deleteConversation } from "../../Services/chatService";
 
-export default function AppChat({ isSidebarOpen }) {
-  const [messages, setMessages] = useState([
-    { id: 1, text: "Bonjour, je suis votre assistant juridique spécialisé pour les Junior-Entreprises. Comment puis-je vous aider aujourd'hui ?", sender: "bot" }
-  ]);
+export default function AppChat({ conversationId = null, onConversationDeleted }) {  const [messages, setMessages] = useState([]);
+  const [currentConversationId, setCurrentConversationId] = useState(null);
+  const [currentConversationTitle, setCurrentConversationTitle] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
 
-  const sendMessage = (text) => {
-    const newMessage = { id: messages.length + 1, text, sender: "user" };
-    setMessages([...messages, newMessage]);
-
-    setTimeout(() => {
-      const botReply = { id: messages.length + 2, text: "Je vais chercher cette information pour vous.", sender: "bot" };
-      setMessages((prev) => [...prev, botReply]);
-    }, 1000);
+// Dans useEffect qui charge la conversation
+useEffect(() => {
+  const loadConversation = async () => {    if (!conversationId) {
+      setMessages([]);
+      setCurrentConversationId(null);
+      setCurrentConversationTitle(null);
+      return;
+    }
+    
+    setCurrentConversationId(conversationId);
+    console.log("ID de conversation mis à jour:", conversationId);
+    
+    setIsLoadingConversation(true);
+    
+    try {
+      const conversation = await getConversationById(conversationId);
+        if (conversation) {
+        // Mettre à jour le titre de la conversation
+        setCurrentConversationTitle(conversation.title || null);
+          if (conversation.messages && conversation.messages.length > 0) {
+          // Debug pour vérifier les citations lors du chargement
+          console.group('🔄 Loading Conversation Messages');
+          console.log('Conversation loaded:', conversation);
+          console.log('Messages count:', conversation.messages.length);
+          conversation.messages.forEach((msg, index) => {
+            if (msg.sender === 'bot') {
+              console.log(`Message ${index} citations:`, msg.citations?.length || 0, msg.citations);
+            }
+          });
+          console.groupEnd();
+          
+          setMessages(conversation.messages);
+        } else {
+          // Pour une nouvelle conversation, ajouter un message d'accueil du bot
+          setMessages([{
+            id: `welcome-${Date.now()}`,
+            text: "Bonjour, comment puis-je vous aider aujourd'hui ?",
+            sender: "bot",
+            timestamp: new Date().toISOString()
+          }]);
+        }
+      } else {
+        setMessages([]);
+        setCurrentConversationTitle(null);
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement de la conversation :", error);
+    } finally {
+      setIsLoadingConversation(false);
+    }
   };
+  
+  loadConversation();
+}, [conversationId]);  const sendMessage = async (text, options = {}) => {
+    const newMessage = { id: Date.now(), text, sender: "user" };
+    const updatedMessages = [...messages, newMessage];
+    setMessages(updatedMessages);
 
-  const handleFileUpload = (files) => {
-    // Pour chaque fichier, créer un message avec le nom du fichier
-    Array.from(files).forEach(file => {
-      const newMessage = { 
-        id: messages.length + 1, 
-        text: `Pièce jointe : ${file.name}`,
-        sender: "user",
-        file: file
+    setIsLoading(true);
+    
+    try {
+      console.log("Envoi de message avec ID de conversation:", currentConversationId);
+      console.log("Options RAG:", options);
+
+      const response = await sendQuery(text, currentConversationId, options);
+
+      if (response.conversation_id) {
+        setCurrentConversationId(response.conversation_id);
+      }
+      
+      if (response.title) {
+        setCurrentConversationTitle(response.title);
+      }      // Traitement amélioré de la réponse pour RAG avec support multi-format
+      const botReply = {
+        id: Date.now() + 1,
+        text: response.answer,
+        sender: "bot",
+        sources: response.sources || [],
+        // Mapper toutes les variantes possibles de citations (comme dans chatService)
+        citations: response.citations || response.excerpts || response.context_excerpts || response.rag_excerpts || [],
       };
-      setMessages([...messages, newMessage]);
-    });
+
+      // Debug pour vérifier les citations reçues
+      console.group('🤖 Bot Reply Creation');
+      console.log('Response from backend:', response);
+      console.log('Available citation fields:');
+      console.log('- citations:', response.citations?.length || 0);
+      console.log('- excerpts:', response.excerpts?.length || 0);
+      console.log('- context_excerpts:', response.context_excerpts?.length || 0);
+      console.log('- rag_excerpts:', response.rag_excerpts?.length || 0);
+      console.log('Bot reply created:', botReply);
+      console.log('Final citations count:', botReply.citations?.length);
+      console.log('Final citations data:', botReply.citations);
+      console.groupEnd();
+
+      setMessages([...updatedMessages, botReply]);
+    } catch (error) {
+      console.error("Erreur de communication avec le backend :", error);
+
+      const errorMessage = {
+        id: Date.now() + 1,
+        text: "Désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer plus tard.",
+        sender: "bot",
+        isError: true,
+      };
+      setMessages([...updatedMessages, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };  const handleFileUpload = async (files) => {
+    // Store files temporarily to be sent with the next message
+    // The actual upload will happen when the user sends a message
+    // For now, just show a confirmation message
+    const newMessages = [...messages];
+    
+    const fileNames = Array.from(files).map(file => file.name).join(', ');
+    const fileMessage = {
+      id: Date.now(),
+      text: `Fichier${files.length > 1 ? 's' : ''} ajouté${files.length > 1 ? 's' : ''} : ${fileNames}`,
+      sender: "user",
+    };
+    
+    newMessages.push(fileMessage);
+    
+    const botReply = {
+      id: Date.now() + 1,
+      text: `J'ai bien reçu ${files.length} fichier${files.length > 1 ? 's' : ''}. Posez-moi votre question et j'utiliserai ce${files.length > 1 ? 's' : ''} document${files.length > 1 ? 's' : ''} pour vous répondre.`,
+      sender: "bot",
+    };
+    
+    setMessages([...newMessages, botReply]);
+  };
+  const startNewConversation = () => {
+    setMessages([]);
+    setCurrentConversationId(null);
+    setCurrentConversationTitle(null);
+  };
+  const handleDeleteConversation = async (convId) => {
+    try {
+      const success = await deleteConversation(convId);
+      if (success && onConversationDeleted) {
+        // Notifier le composant parent que la conversation a été supprimée
+        onConversationDeleted(convId);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression de la conversation:", error);
+      throw error; // Rethrow pour que ChatBox puisse afficher un message d'erreur
+    }
   };
 
   return (
-    <div className="fixed right-0 bottom-2 w-[calc(100%-16rem)] h-[calc(100vh-64px)] flex flex-col overflow-hidden">
-      {/* ChatBox */}
+    <div className="fixed right-0 top-0 w-[calc(100%-16rem)] h-screen flex flex-col overflow-hidden">
+      <div className="h-16 shrink-0 bg-background border-b p-4 flex justify-between items-center">
+        <h2 className="text-lg font-medium">          {isLoadingConversation ? (
+            <span className="flex items-center">
+              <span className="animate-spin h-4 w-4 mr-2 border-t-2 border-[#16698C] rounded-full"></span>
+              Chargement...
+            </span>
+          ) : currentConversationId ? (
+            currentConversationTitle || `Conversation #${currentConversationId.substring(0, 8)}...`
+          ) : (
+            "Nouvelle conversation"
+          )}
+        </h2>
+        <button
+          onClick={startNewConversation}
+          className="px-3 py-1 bg-[#16698C] text-white rounded-md hover:bg-[#15ACCD] text-sm"
+        >
+          Nouvelle conversation
+        </button>
+      </div>
+
       <div className="flex-1 min-h-0">
-        <div className="h-[calc(100vh-8rem)] overflow-y-auto p-4">
-          <ChatBox messages={messages} />
+        <div className="h-[calc(100vh-16rem)] overflow-y-auto p-4">
+        <ChatBox 
+        messages={messages} 
+        isLoading={isLoading}
+        conversationId={conversationId}
+        onDeleteConversation={handleDeleteConversation}
+      />
         </div>
       </div>
 
-      {/* Barre d'Entrée */}
       <div className="h-16 shrink-0 bg-background border-t p-4">
-        <InputBox 
-          sendMessage={sendMessage} 
-          isSidebarOpen={isSidebarOpen} 
+        <InputBox
+          sendMessage={sendMessage}
           onFileUpload={handleFileUpload}
+          isLoading={isLoading}
+          disabled={isLoadingConversation}
         />
       </div>
     </div>
   );
-  
 }

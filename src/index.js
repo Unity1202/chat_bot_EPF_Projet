@@ -8,6 +8,8 @@ import ReactDOM from 'react-dom/client';
 import './styles/globals.css';
 import './styles/fonts.css';
 import './styles/components.css';
+import './styles/markdown.css';
+import './styles/rag-specific.css';
 import App from './App';
 import { ThemeProvider } from './components/Header/theme-provider';
 
