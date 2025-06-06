@@ -75,8 +75,14 @@ const ChatContainer = () => {
         />        <main className="flex-1">
           {isLoadingAuth && conversationId ? (
             <div className="flex justify-center items-center h-screen">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16698C]"></div>
-              <p className="ml-3 text-lg">Chargement de la conversation...</p>
+              <div className="relative">
+                <div className="animate-spin rounded-full h-24 w-24 border-t-2 border-b-2 border-[#16698C]"></div>
+                <img 
+                  src="/logo_juridica.png" 
+                  alt="JuridicA" 
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16" 
+                />
+              </div>
             </div>
           ) : (
             <div className="flex flex-col">
@@ -103,7 +109,14 @@ const AuthenticatedApp = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16698C]"></div>
+        <div className="relative">
+          <div className="animate-spin rounded-full h-24 w-24 border-t-2 border-b-2 border-[#16698C]"></div>
+          <img 
+            src="/logo_juridica.png" 
+            alt="JuridicA" 
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16" 
+          />
+        </div>
       </div>
     );
   }

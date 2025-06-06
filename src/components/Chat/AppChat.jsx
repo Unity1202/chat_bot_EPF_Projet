@@ -160,13 +160,21 @@ useEffect(() => {
   };
 
   return (
-    <div className="fixed right-0 top-0 w-[calc(100%-16rem)] h-screen flex flex-col overflow-hidden">
+    <div className="fixed right-0 top-0 w-[calc(100%-16rem)] h-[96.5vh] flex flex-col overflow-hidden mt-5">
       <div className="h-16 shrink-0 bg-background border-b p-4 flex justify-between items-center">
-        <h2 className="text-lg font-medium">          {isLoadingConversation ? (
-            <span className="flex items-center">
-              <span className="animate-spin h-4 w-4 mr-2 border-t-2 border-[#16698C] rounded-full"></span>
-              Chargement...
-            </span>
+        <h2 className="text-lg font-medium">
+          {isLoadingConversation ? (
+            <div className="flex items-center justify-center w-full">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#16698C]"></div>
+                <img 
+                  src="/logo_juridica.png" 
+                  alt="JuridicA" 
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6" 
+                />
+              </div>
+              <span className="ml-2">Chargement...</span>
+            </div>
           ) : currentConversationId ? (
             currentConversationTitle || `Conversation #${currentConversationId.substring(0, 8)}...`
           ) : (
@@ -181,15 +189,13 @@ useEffect(() => {
         </button>
       </div>
 
-      <div className="flex-1 min-h-0">
-        <div className="h-[calc(100vh-16rem)] overflow-y-auto p-4">
+      <div className="flex-1 overflow-hidden">
         <ChatBox 
-        messages={messages} 
-        isLoading={isLoading}
-        conversationId={conversationId}
-        onDeleteConversation={handleDeleteConversation}
-      />
-        </div>
+          messages={messages} 
+          isLoading={isLoading}
+          conversationId={conversationId}
+          onDeleteConversation={handleDeleteConversation}
+        />
       </div>
 
       <div className="h-16 shrink-0 bg-background border-t p-4">

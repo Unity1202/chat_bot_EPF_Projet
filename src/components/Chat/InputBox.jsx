@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { BookOpenIcon, BookOpenCheck, SearchIcon, LightbulbIcon } from 'lucide-react';
+import { BookOpenIcon, BookOpenCheck, SearchIcon, LightbulbIcon, Send } from 'lucide-react';
 
 export default function InputBox({ sendMessage, onFileUpload, isLoading, disabled }) {
   const [message, setMessage] = useState('');
@@ -63,7 +63,8 @@ export default function InputBox({ sendMessage, onFileUpload, isLoading, disable
         </div>
       )}
       
-      <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-background"><button 
+      <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-background">
+      <button 
         type="button" 
         onClick={handleFileClick}
         disabled={isDisabled}
@@ -74,29 +75,7 @@ export default function InputBox({ sendMessage, onFileUpload, isLoading, disable
           <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
         </svg>
       </button>
-      <button
-        type="button"
-        onClick={toggleRAG}
-        disabled={isDisabled}
-        className={`p-1.5 rounded-md ${useRAG ? 'text-blue-600 bg-blue-100' : 'text-gray-400'} hover:bg-gray-100`}
-        title={useRAG ? "Sources documentaires activées" : "Sources documentaires désactivées"}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {useRAG ? (
-            <>
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-            </>
-          ) : (
-            <>
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-            </>
-          )}
-        </svg>
-      </button>      <input
+      <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
@@ -120,13 +99,16 @@ export default function InputBox({ sendMessage, onFileUpload, isLoading, disable
       <button 
         type="submit" 
         disabled={isDisabled || !message.trim()}
-        className={`bg-[#16698C] text-white px-4 py-2 rounded-lg ${
+        title="Envoyer votre message"
+        className={`bg-[#16698C] text-white px-4 py-2 rounded-lg flex items-center gap-2 ${
           isDisabled || !message.trim() 
             ? 'opacity-50 cursor-not-allowed' 
             : 'hover:bg-[#16ACCD]'
         }`}
       >
-        {isLoading ? 'Envoi...' : 'Envoyer'}      </button>
+        {isLoading ? 'Envoi...' : 'Envoyer'}
+        <Send size={18} />
+      </button>
     </form>
     </div>
   );

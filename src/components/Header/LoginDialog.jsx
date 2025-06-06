@@ -103,9 +103,6 @@ const LoginDialog = ({ children }) => {
             <DialogContent className="bg-[#16698C] border-[#16698C] border-2 [&>button]:text-white">
                 <DialogHeader>
                     <DialogTitle className="text-[#FFFFFF]">Connexion</DialogTitle>
-                    <DialogDescription className="text-[#FFFFFF]/70">
-                        Connectez-vous pour accéder à votre compte.
-                    </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">

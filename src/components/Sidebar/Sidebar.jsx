@@ -109,7 +109,7 @@ export function Sidebar({ onConversationSelect, refreshTrigger = 0, activeConver
   };
 
   return (
-    <UISidebar className="mt-16">
+    <UISidebar className="fixed top-0 left-0 h-screen">
       <SidebarContent className="flex flex-col h-full">
         <div className="sticky top-0 z-10 bg-background">
           <SidebarHeader 

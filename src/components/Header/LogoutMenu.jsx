@@ -7,7 +7,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
 } from "../../components/ui/dropdown-menu";
-import { User, LogOut, Settings, Shield, Check } from "lucide-react";
+import { LogOut, Shield, Check } from "lucide-react";
 import { useAuth } from '../../contexts/AuthContext';
 
 const LogoutMenu = ({ children, onLogout, user }) => {
@@ -17,7 +17,8 @@ const LogoutMenu = ({ children, onLogout, user }) => {
             <DropdownMenuTrigger asChild>
                 {children}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">                <DropdownMenuLabel className="font-normal">
+            <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                         <div className="flex items-center justify-between">
                             <p className="text-sm font-medium leading-none">
@@ -36,14 +37,7 @@ const LogoutMenu = ({ children, onLogout, user }) => {
                     </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profil</span>
-                </DropdownMenuItem>                <DropdownMenuItem className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Paramètres</span>
-                </DropdownMenuItem>
-                  {isAdmin && (
+                {isAdmin && (
                     <DropdownMenuItem className="cursor-pointer">
                         <a href="/admin" className="flex w-full items-center">
                             <Shield className="mr-2 h-4 w-4" />
@@ -51,8 +45,6 @@ const LogoutMenu = ({ children, onLogout, user }) => {
                         </a>
                     </DropdownMenuItem>
                 )}
-                
-                <DropdownMenuSeparator />
                 <DropdownMenuItem 
                     className="cursor-pointer text-red-500 focus:bg-red-50 focus:text-red-500" 
                     onClick={onLogout}
