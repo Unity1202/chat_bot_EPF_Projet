@@ -125,9 +125,7 @@ useEffect(() => {
           console.log(`Appel de onConversationUpdated avec: ID=${response.conversation_id}, Title=${response.title}`);
           onConversationUpdated(response.conversation_id, response.title);
         }
-      }
-
-      // Traitement amélioré de la réponse pour RAG avec support multi-format
+      }      // Traitement amélioré de la réponse pour RAG avec support multi-format
       const botReply = {
         id: Date.now() + 1,
         text: response.answer,
@@ -135,6 +133,8 @@ useEffect(() => {
         sources: response.sources || [],
         // Mapper toutes les variantes possibles de citations (comme dans chatService)
         citations: response.citations || response.excerpts || response.context_excerpts || response.rag_excerpts || [],
+        // Ajouter les informations du document généré si disponible
+        generatedDocument: response.generatedDocument
       };
 
       // Debug pour vérifier les citations reçues

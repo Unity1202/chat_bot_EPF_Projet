@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
+import { FileText } from 'lucide-react';
 
 // Fonction pour prétraiter le texte des réponses RAG
 const preprocessRagText = (text) => {
@@ -31,13 +32,27 @@ const preprocessRagText = (text) => {
   }
 };
 
-export default function Message({ text, sender, sources = [], citations = [] }) {
+export default function Message({ text, sender, sources = [], citations = [], generatedDocument = null }) {
   const isUser = sender === "user";
   
   // Normaliser les props pour éviter les erreurs
   const normalizedText = typeof text === 'string' ? text : '';
   const normalizedSources = Array.isArray(sources) ? sources : [];
   const normalizedCitations = Array.isArray(citations) ? citations : [];
+  // Debug pour voir les données de document
+  console.log("Document data received:", generatedDocument);
+  
+  // Construire l'URL de téléchargement du document si disponible
+  const documentUrl = generatedDocument?.url 
+    ? generatedDocument.url.startsWith('http') 
+      ? generatedDocument.url 
+      : generatedDocument.url.startsWith('/') 
+        ? `http://localhost:8000${generatedDocument.url}` 
+        : `http://localhost:8000/${generatedDocument.url}`
+    : null;
+    
+  console.log("Document URL built:", documentUrl);
+  // console.log("Document URL:", documentUrl, "generatedDocument:", generatedDocument);
   
   // Debug pour tracer les citations
   /*console.group(`📨 Message Component - ${sender}`);
@@ -84,9 +99,28 @@ export default function Message({ text, sender, sources = [], citations = [] }) 
                   hr: ({node, ...props}) => <hr className="my-4 border-gray-300 dark:border-gray-600" {...props} />
                 }}              >
                 {preprocessRagText(normalizedText)}
-              </ReactMarkdown>
-            ) : (
+              </ReactMarkdown>            ) : (
               <p className="text-gray-500 italic">Message vide ou format non supporté</p>
+            )}
+            
+            {/* Afficher le lien de téléchargement si un document a été généré */}
+            {documentUrl && (
+              <div className="document-download-link">
+                <a 
+                  href={documentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-3 mt-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-800/50 transition-colors"
+                >
+                  <FileText className="w-5 h-5" />
+                  <div>
+                    <span className="font-medium">Document généré automatiquement</span>
+                    <span className="block text-sm text-gray-600 dark:text-gray-300">
+                      {generatedDocument.format === 'pdf' ? 'PDF' : 'Document Word'} - Cliquez pour télécharger
+                    </span>
+                  </div>
+                </a>
+              </div>
             )}
           </div>
         )}        {/* Afficher les sources si elles existent et ne sont pas vides */}

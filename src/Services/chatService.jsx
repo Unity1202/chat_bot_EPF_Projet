@@ -109,16 +109,16 @@ export const sendQuery = async (query, conversationId = null, options = {}) => {
     }    const data = await response.json();
    // debugLog("Response from sendQuery", data);
    // diagnoseRAGData(data, "sendQuery Response");
-    validateAPIResponse(data, "sendQuery");
-      // Normaliser la réponse pour correspondre au format attendu par le frontend
-    // Backend renvoie: answer, sources, excerpts, conversation_id, title
-    // Frontend attend: answer, sources, citations, conversation_id, title
+    validateAPIResponse(data, "sendQuery");    // Normaliser la réponse pour correspondre au format attendu par le frontend
+    // Backend renvoie: answer, sources, excerpts, conversation_id, title, generated_document
+    // Frontend attend: answer, sources, citations, conversation_id, title, generatedDocument
     const normalizedData = {
       answer: data.answer,
       sources: data.sources || [],
       citations: data.excerpts || data.citations || data.context_excerpts || data.rag_excerpts || [], // Mapper toutes les variantes
       conversation_id: data.conversation_id,
-      title: data.title // Conserver le titre s'il est présent dans la réponse
+      title: data.title, // Conserver le titre s'il est présent dans la réponse
+      generatedDocument: data.generated_document || null // Ajouter les informations sur le document généré
     };
     
     //debugLog("Normalized data for frontend", normalizedData);
@@ -257,20 +257,19 @@ export const getConversationById = async (conversationId) => {
         const conversationInfo = await getConversationMetadata(conversationId);
         
         const transformedConversation = {
-          id: conversationId,
-          title: conversationInfo?.title || fullHistory.title || `Conversation #${conversationId.substring(0, 8)}...`,
+          id: conversationId,          title: conversationInfo?.title || fullHistory.title || `Conversation #${conversationId.substring(0, 8)}...`,
           category: assignCategory(conversationInfo?.category || fullHistory.category || 'other'),
           messages: fullHistory.messages.map((msg, index) => {
-           // debugLog(`Processing message ${index} from full history`, msg);
-            
+            // debugLog(`Processing message ${index} from full history`, msg);
             const transformedMessage = {
-              id: msg.id || `msg-${index}-${Date.now()}`,
-              text: msg.content || msg.message || msg.text,
+              id: msg.id || `msg-${index}-${Date.now()}`,              text: msg.content || msg.message || msg.text,
               sender: msg.role === 'user' ? 'user' : 'bot',
               timestamp: msg.timestamp || new Date().toISOString(),
               sources: msg.sources || [],
               // Récupérer les citations directement du backend (toutes les variantes)
-              citations: msg.citations || msg.excerpts || msg.context_excerpts || msg.rag_excerpts || []
+              citations: msg.citations || msg.excerpts || msg.context_excerpts || msg.rag_excerpts || [],
+              // Inclure les informations de document généré si disponibles
+              generatedDocument: msg.generated_document || msg.generatedDocument
             };
             
             if (msg.role !== 'user') {
@@ -345,17 +344,17 @@ export const getConversationById = async (conversationId) => {
               }
             } catch (error) {
               console.warn(`Could not enrich message ${msg.id} with citations:`, error);
-            }
-          }
-          
-          const transformedMessage = {
-            id: msg.id || `msg-${index}-${Date.now()}`,
-            text: msg.content || msg.message,
-            sender: msg.role === 'user' ? 'user' : 'bot',
-            timestamp: msg.timestamp || new Date().toISOString(),
-            sources: msg.sources || [],
-            citations: citations
-          };
+            }          }
+            
+            const transformedMessage = {              id: msg.id || `msg-${index}-${Date.now()}`,
+              text: msg.content || msg.message,
+              sender: msg.role === 'user' ? 'user' : 'bot',
+              timestamp: msg.timestamp || new Date().toISOString(),
+              sources: msg.sources || [],
+              citations: citations,
+              // Inclure les informations de document généré si disponibles
+              generatedDocument: msg.generated_document || msg.generatedDocument
+            };
           
           if (msg.role !== 'user') {
             traceDataTransformation(msg, transformedMessage, `Standard History Message ${index}`);
@@ -592,10 +591,28 @@ export const getFullConversationHistory = async (conversationId) => {
         'Accept': 'application/json'
       }
     });
-    
-    if (response.ok) {
+      if (response.ok) {
       const data = await response.json();
-      //debugLog("Full conversation history with citations", data);
+      console.log("Histoire complète récupérée:", data);
+      
+      // Normaliser les données pour s'assurer que les documents sont correctement traités
+      if (data && data.messages && Array.isArray(data.messages)) {
+        console.log("Nombre de messages dans l'historique:", data.messages.length);
+        
+        data.messages = data.messages.map(msg => {
+          // Vérifier si le message contient des informations de document
+          if (msg.generated_document) {
+            console.log("Document trouvé dans un message:", msg.generated_document);
+          }
+          
+          // Convertir generated_document en generatedDocument si nécessaire
+          if (msg.generated_document && !msg.generatedDocument) {
+            msg.generatedDocument = msg.generated_document;
+          }
+          return msg;
+        });
+      }
+      
       return data;
     } else {
       console.warn('Full history endpoint not available, falling back to standard history');

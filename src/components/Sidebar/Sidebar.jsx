@@ -6,6 +6,7 @@ import {
 import SidebarHeader from "./SidebarHeader";
 import ConversationList from "./ConversationList";
 import { getConversationHistory, deleteConversation, createNewConversation } from '../../Services/chatService';
+import { Link } from 'react-router-dom';
 
 import { ScrollArea } from "../ui/scroll-area";
 import { useAuth } from "../../contexts/AuthContext";
@@ -124,8 +125,7 @@ export function Sidebar({ onConversationSelect, refreshTrigger = 0, activeConver
 
   return (
     <UISidebar className="mt-16">
-      <SidebarContent className="flex flex-col h-full">
-        <div className="sticky top-0 z-10 bg-background">
+      <SidebarContent className="flex flex-col h-full">        <div className="sticky top-0 z-10 bg-background">
           <SidebarHeader 
             selectedFilter={selectedFilter} 
             setSelectedFilter={setSelectedFilter}
@@ -133,6 +133,21 @@ export function Sidebar({ onConversationSelect, refreshTrigger = 0, activeConver
             onNewChat={handleNewChat}
           />
         </div>
+        
+        {/* Lien vers l'outil d'analyse de documents */}
+        <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+          <Link 
+            to="/document-analyzer" 
+            className="flex items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            <svg className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 8h-9.5m7.5 4h-7.5m5.5 4h-5.5M10 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M18 2v6h6M18 2l6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="font-medium text-sm">Analyse de Documents</span>
+          </Link>
+        </div>
+        
         <div className="flex-1 overflow-hidden group">
           <div className="h-full">
             <ScrollArea 

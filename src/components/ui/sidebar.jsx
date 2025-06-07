@@ -5,7 +5,7 @@ const Sidebar = React.forwardRef(({ className, children, ...props }, ref) => (
   <div 
     ref={ref} 
     className={cn(
-      "fixed left-0 top-0 z-30 h-screen w-64 border-r border-sidebar-border bg-sidebar", 
+      "relative h-screen w-full border-r border-sidebar-border bg-sidebar", 
       className
     )}
     {...props}

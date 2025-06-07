@@ -10,6 +10,7 @@ import './styles/fonts.css';
 import './styles/components.css';
 import './styles/markdown.css';
 import './styles/rag-specific.css';
+import './styles/document-analyzer.css';
 import App from './App';
 import { ThemeProvider } from './components/Header/theme-provider';
 

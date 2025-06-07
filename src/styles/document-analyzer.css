@@ -1,0 +1,158 @@
+/* Styles spécifiques pour les composants d'analyse de documents */
+
+/* Style global pour l'analyse de document */
+.document-analyzer-root {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+/* Styles pour la zone de drop de documents */
+.document-drop-zone {
+  transition: all 0.2s ease;
+  border: 2px dashed #cbd5e0;
+}
+
+.document-drop-zone:hover, 
+.document-drop-zone.active {
+  border-color: #3182ce;
+  background-color: rgba(49, 130, 206, 0.05);
+}
+
+/* Animation pour le téléchargement */
+.upload-progress {
+  transition: width 0.3s ease-in-out;
+}
+
+/* Styles pour les onglets d'analyse */
+.analysis-tab {
+  position: relative;
+}
+
+.error-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
+
+/* Styles pour les différents types d'erreurs */
+.error-spelling {
+  background-color: rgba(245, 101, 101, 0.1);
+  border-left: 3px solid #f56565;
+}
+
+.error-grammar {
+  background-color: rgba(237, 137, 54, 0.1);
+  border-left: 3px solid #ed8936;
+}
+
+.error-legal {
+  background-color: rgba(153, 102, 255, 0.1);
+  border-left: 3px solid #9966ff;
+}
+
+/* Assure que les grilles d'erreurs sont responsives */
+.error-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Survol pour les suggestions de correction */
+.correction-suggestion {
+  transition: all 0.2s ease;
+}
+
+.correction-suggestion:hover {
+  background-color: #ebf8ff;
+  border-color: #3182ce;
+}
+
+/* Effet pour les messages de chat */
+.chat-message {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fadeInUp 0.2s forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Effet de pulsation pour les éléments en cours de chargement */
+.pulse {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+/* Styles pour la comparaison avant/après dans le correcteur */
+.diff-view {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Style pour le texte supprimé/remplacé */
+.diff-removed {
+  background-color: rgba(245, 101, 101, 0.2);
+  text-decoration: line-through;
+  color: #e53e3e;
+}
+
+/* Style pour le texte ajouté/corrigé */
+.diff-added {
+  background-color: rgba(72, 187, 120, 0.2);
+  color: #38a169;
+}
+
+/* Animation pour la correction automatique */
+.correction-animation {
+  position: relative;
+  overflow: hidden;
+}
+
+.correction-animation::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.2), 
+    transparent
+  );
+  animation: slide 1.2s infinite;
+}
+
+@keyframes slide {
+  100% {
+    left: 100%;
+  }
+}

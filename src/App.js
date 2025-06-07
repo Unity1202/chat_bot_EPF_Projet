@@ -7,13 +7,14 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigat
 import { Sidebar } from "./components/Sidebar/Sidebar"
 import Header from "./components/Header/Header"
 import AppChat from "./components/Chat/AppChat"
+import DocumentAnalyzer from "./components/DocumentAnalysis/DocumentAnalyzer"
 import AdminView from "./views/AdminView"
 import ProtectedAdminRoute from "./components/Admin/ProtectedAdminRoute"
 import { AuthProvider } from "./contexts/AuthContext"
 import { useAuth } from "./contexts/AuthContext";
 import { checkAuthentication } from "./Services/chatService";
 
-const ChatContainer = () => {
+const ChatContainer = ({ view }) => {
   const { conversationId } = useParams();
   const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -104,27 +105,33 @@ const ChatContainer = () => {
 
   return (
     <>
-      <Header />
-      <div className="flex flex-1 relative">        <Sidebar 
-          onConversationSelect={handleConversationSelect}
-          refreshTrigger={refreshTrigger}
-          activeConversationId={conversationId}
-          updatedConversation={updatedConversation}
-        /><main className="flex-1">
+      <Header />      <div className="flex flex-1 relative main-layout">
+        <div className="sidebar-container">
+          <Sidebar 
+            onConversationSelect={handleConversationSelect}
+            refreshTrigger={refreshTrigger}
+            activeConversationId={conversationId}
+            updatedConversation={updatedConversation}
+          />
+        </div>
+        <main className="flex-1 min-w-0 main-content">
           {isLoadingAuth && conversationId ? (
             <div className="flex justify-center items-center h-screen">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16698C]"></div>
               <p className="ml-3 text-lg">Chargement de la conversation...</p>
-            </div>
-          ) : (
+            </div>          ) : (
             <div className="flex flex-col">
-              
-              
-              <div className="flex-1">                <AppChat 
-                  conversationId={conversationId}
-                  onConversationDeleted={handleConversationDeleted}
-                  onConversationUpdated={handleConversationUpdated}
-                />
+              <div className="flex-1">                {view === "document-analyzer" ? (
+                  <div className="px-4 py-6 w-full overflow-x-auto">
+                    <DocumentAnalyzer />
+                  </div>
+                ) : (
+                  <AppChat 
+                    conversationId={conversationId}
+                    onConversationDeleted={handleConversationDeleted}
+                    onConversationUpdated={handleConversationUpdated}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -145,10 +152,11 @@ const AuthenticatedApp = () => {
       </div>
     );
   }
-    return (
+  return (
     <Routes>
       <Route path="/" element={<ChatContainer />} />
       <Route path="/chat/:conversationId" element={<ChatContainer />} />
+      <Route path="/document-analyzer" element={<ChatContainer view="document-analyzer" />} />
       <Route path="/admin" element={<ProtectedAdminRoute><AdminView /></ProtectedAdminRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

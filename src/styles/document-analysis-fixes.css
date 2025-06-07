@@ -1,0 +1,74 @@
+/* Styles additionnels pour résoudre les problèmes d'affichage d'analyse de document */
+
+/* Assurer que les panneaux d'analyse ont un défilement propre */
+.analysis-panel {
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-width: 100%;
+}
+
+/* Améliorer l'affichage des suggestions */
+.analysis-suggestions {
+  background-color: rgba(235, 248, 255, 0.5);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-top: 1.5rem;
+}
+
+/* Assurer que les onglets sont correctement alignés */
+.analysis-tabs-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 100%;
+}
+
+/* Améliorer l'affichage des résumés d'erreurs */
+.error-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Assurer que la section d'analyse fonctionne bien dans les petits écrans */
+@media (max-width: 768px) {
+  .error-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .analysis-tabs-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Améliorer l'affichage des détails d'erreurs */
+.error-detail-card {
+  margin-bottom: 1rem;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.error-detail-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Améliorer l'affichage des extraits de texte concernés */
+.error-context {
+  background-color: rgba(243, 244, 246, 0.8);
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  position: relative;
+}
+
+/* Mettre en évidence la partie concernée par l'erreur */
+.error-highlight {
+  background-color: rgba(252, 211, 77, 0.3);
+  border-bottom: 2px solid #f59e0b;
+  padding: 0 2px;
+}
