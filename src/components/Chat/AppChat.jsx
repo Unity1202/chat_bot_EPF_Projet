@@ -45,6 +45,7 @@ useEffect(() => {
       setMessages([]);
       setCurrentConversationId(null);
       setCurrentConversationTitle(null);
+      setIsLoadingConversation(false); // S'assurer que le loading est désactivé
       return;
     }
     
@@ -52,6 +53,12 @@ useEffect(() => {
     console.log("ID de conversation mis à jour:", conversationId);
     
     setIsLoadingConversation(true);
+    
+    // Timeout de sécurité pour éviter un blocage infini
+    const timeoutId = setTimeout(() => {
+      console.warn("Timeout atteint lors du chargement de la conversation");
+      setIsLoadingConversation(false);
+    }, 10000); // 10 secondes
     
     try {
       const conversation = await getConversationById(conversationId);
@@ -86,14 +93,26 @@ useEffect(() => {
       }
     } catch (error) {
       console.error("Erreur lors du chargement de la conversation :", error);
+      // En cas d'erreur, s'assurer que l'interface reste utilisable
+      setMessages([]);
+      setCurrentConversationTitle(null);
     } finally {
+      clearTimeout(timeoutId); // Annuler le timeout
       setIsLoadingConversation(false);
     }
   };
   
   loadConversation();
 }, [conversationId]);  const sendMessage = async (text, options = {}) => {
-    const newMessage = { id: Date.now(), text, sender: "user" };
+    // Créer un message approprié selon le contenu
+    let messageText = text;
+    if (!text.trim() && options.files && options.files.length > 0) {
+      // Si pas de texte mais des fichiers, créer un message descriptif
+      const fileNames = options.files.map(file => file.name).join(', ');
+      messageText = `📎 ${options.files.length} fichier${options.files.length > 1 ? 's' : ''} uploadé${options.files.length > 1 ? 's' : ''}: ${fileNames}`;
+    }
+    
+    const newMessage = { id: Date.now(), text: messageText, sender: "user" };
     const updatedMessages = [...messages, newMessage];
     setMessages(updatedMessages);
 
@@ -103,7 +122,14 @@ useEffect(() => {
       console.log("Envoi de message avec ID de conversation:", currentConversationId);
       console.log("Options RAG:", options);
 
-      const response = await sendQuery(text, currentConversationId, options);
+      // Déterminer la requête à envoyer au backend
+      let queryToSend = text.trim();
+      if (!queryToSend && options.files && options.files.length > 0) {
+        // Si pas de texte mais des fichiers, utiliser une requête par défaut
+        queryToSend = "Analysez ce document et dites-moi ce qu'il contient.";
+      }
+
+      const response = await sendQuery(queryToSend, currentConversationId, options);
       
       // Vérifier si une nouvelle conversation a été créée
       if (response.conversation_id) {
@@ -164,28 +190,28 @@ useEffect(() => {
     } finally {
       setIsLoading(false);
     }
-  };  const handleFileUpload = async (files) => {
-    // Store files temporarily to be sent with the next message
-    // The actual upload will happen when the user sends a message
-    // For now, just show a confirmation message
-    const newMessages = [...messages];
-    
-    const fileNames = Array.from(files).map(file => file.name).join(', ');
-    const fileMessage = {
-      id: Date.now(),
-      text: `Fichier${files.length > 1 ? 's' : ''} ajouté${files.length > 1 ? 's' : ''} : ${fileNames}`,
-      sender: "user",
-    };
-    
-    newMessages.push(fileMessage);
-    
-    const botReply = {
-      id: Date.now() + 1,
-      text: `J'ai bien reçu ${files.length} fichier${files.length > 1 ? 's' : ''}. Posez-moi votre question et j'utiliserai ce${files.length > 1 ? 's' : ''} document${files.length > 1 ? 's' : ''} pour vous répondre.`,
-      sender: "bot",
-    };
-    
-    setMessages([...newMessages, botReply]);
+  };  const handleFileUpload = (files) => {
+    try {
+      // Vérification que les fichiers sont bien reçus
+      if (!files || !files.length) {
+        console.warn("Aucun fichier reçu dans handleFileUpload");
+        return;
+      }
+      
+      // Log pour debugging
+      console.log(`${files.length} fichier(s) sélectionné(s):`, files.map(f => f.name));
+      
+      // IMPORTANT: Toujours forcer l'état isLoading à false après la sélection d'un fichier
+      // pour garantir que l'interface reste utilisable
+      setIsLoading(false);
+      
+      // On pourrait ajouter ici d'autres traitements liés aux fichiers si nécessaire
+      // Comme la préparation pour afficher une prévisualisation, etc.
+    } catch (error) {
+      console.error("Erreur dans handleFileUpload:", error);
+      // Garantir que l'interface reste utilisable même en cas d'erreur
+      setIsLoading(false);
+    }
   };
   const startNewConversation = () => {
     setMessages([]);
@@ -236,14 +262,12 @@ useEffect(() => {
         onDeleteConversation={handleDeleteConversation}
       />
         </div>
-      </div>
-
-      <div className="h-16 shrink-0 bg-background border-t p-4">
+      </div>      <div className="h-16 shrink-0 bg-background border-t p-4">
         <InputBox
           sendMessage={sendMessage}
           onFileUpload={handleFileUpload}
-          isLoading={isLoading}
-          disabled={isLoadingConversation}
+          isLoading={isLoading} 
+          key={`input-${conversationId || 'new'}`} // Utiliser conversationId au lieu de Date.now() pour améliorer la stabilité
         />
       </div>
     </div>

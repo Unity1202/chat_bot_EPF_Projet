@@ -6,6 +6,44 @@
 const BASE_URL = 'http://localhost:8000/api/file-analysis';
 
 /**
+ * Traiter les erreurs d'API de manière cohérente
+ * @param {Response} response - La réponse HTTP
+ * @param {string} operation - Le nom de l'opération en cours (pour les logs)
+ * @returns {Promise<void>} - Rejette avec une erreur appropriée
+ */
+const handleApiError = async (response, operation) => {
+  try {
+    const errorData = await response.json().catch(() => ({}));
+    const statusText = response.statusText ? ` (${response.statusText})` : '';
+    
+    // Traitement spécifique selon le code HTTP
+    if (response.status === 422) {
+      throw new Error(
+        errorData.detail 
+          ? `Erreur de validation: ${errorData.detail}` 
+          : `Erreur de validation des données${statusText}`
+      );
+    } else if (response.status === 404) {
+      throw new Error(
+        errorData.detail 
+          ? `Ressource non trouvée: ${errorData.detail}` 
+          : `Ressource non trouvée${statusText}`
+      );
+    } else if (response.status === 401) {
+      throw new Error("Session expirée, veuillez vous reconnecter");
+    } else {
+      throw new Error(
+        errorData.detail 
+          ? `Erreur: ${errorData.detail}` 
+          : `Erreur API ${response.status}${statusText}`
+      );
+    }
+  } catch (jsonError) {
+    throw new Error(`Erreur lors de ${operation}: ${response.status}`);
+  }
+};
+
+/**
  * Upload d'un document
  * @param {File} file - Le fichier à uploader
  * @returns {Promise<DocumentUploadResponse>} - La réponse du backend avec les informations du document
@@ -25,8 +63,7 @@ export const uploadDocument = async (file) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Erreur API: ${response.status}`);
+      await handleApiError(response, "l'upload du document");
     }
 
     const data = await response.json();
@@ -75,19 +112,21 @@ export const uploadDocument = async (file) => {
  */
 export const analyzeDocument = async (documentId) => {
   try {
-    const response = await fetch(`${BASE_URL}/analyze`, {
+    // Validate document ID
+    if (!documentId) {
+      throw new Error("ID du document non défini");
+    }    const response = await fetch(`${BASE_URL}/analyze`, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({ document_id: documentId })
+      body: JSON.stringify({ document_id: documentId.toString() })
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Erreur API: ${response.status}`);
+      await handleApiError(response, "l'analyse du document");
     }
 
     const data = await response.json();
@@ -115,6 +154,13 @@ export const analyzeDocument = async (documentId) => {
  */
 export const queryDocument = async (documentId, question, conversationId = null) => {
   try {
+    // Validate inputs
+    if (!documentId) {
+      throw new Error("ID du document non défini");
+    }
+    if (!question) {
+      throw new Error("Question non définie");
+    }
     const requestData = { 
       document_id: documentId, 
       query: question 
@@ -136,8 +182,7 @@ export const queryDocument = async (documentId, question, conversationId = null)
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Erreur API: ${response.status}`);
+      await handleApiError(response, "la requête sur le document");
     }
 
     const data = await response.json();
@@ -164,6 +209,14 @@ export const queryDocument = async (documentId, question, conversationId = null)
  */
 export const correctDocument = async (documentId) => {
   try {
+    // Validate document ID
+    if (!documentId) {
+      throw new Error("ID du document non défini");
+    }
+    
+    // Log what is being sent to the API
+    console.log("Sending correction request for document ID:", documentId);
+    
     const response = await fetch(`${BASE_URL}/correct`, {
       method: 'POST',
       credentials: 'include',
@@ -171,20 +224,39 @@ export const correctDocument = async (documentId) => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({ document_id: documentId })
+      body: JSON.stringify({ 
+        document_id: documentId.toString(),
+        apply_corrections: true
+      })
     });
-
+    
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Erreur API: ${response.status}`);
-    }
-
-    const data = await response.json();
+      await handleApiError(response, "la correction du document");
+    }    const data = await response.json();
     console.log("Document corrigé:", data);
+    
+    // Add additional validation of the response
+    if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
+      console.warn("La réponse de l'API de correction est vide");
+      throw new Error("Réponse vide reçue de l'API");
+    }
+    
+    // Validate required fields according to API documentation
+    if (!data.corrected_document_id) {
+      console.warn("ID du document corrigé manquant dans la réponse:", data);
+    }
+    
     return data;
   } catch (error) {
     console.error("Erreur lors de la correction du document:", error);
-    throw error;
+    // Make sure we're always throwing a proper Error object with a readable message
+    if (error instanceof Error) {
+      throw error;
+    } else if (typeof error === 'object') {
+      throw new Error(error?.detail || JSON.stringify(error) || "Erreur inconnue");
+    } else {
+      throw new Error(String(error) || "Erreur inconnue");
+    }
   }
 };
 
@@ -203,8 +275,7 @@ export const getDocumentHistory = async () => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Erreur API: ${response.status}`);
+      await handleApiError(response, "la récupération de l'historique des documents");
     }
 
     const data = await response.json();
@@ -230,17 +301,24 @@ export const downloadDocument = async (filename) => {
     // Assurez-vous que le nom de fichier est encodé correctement pour l'URL
     const encodedFilename = encodeURIComponent(filename);
     const url = `${BASE_URL}/download/${encodedFilename}`;
+    
+    console.log(`Tentative de téléchargement du fichier: ${filename}`);
+    console.log(`URL de téléchargement: ${url}`);
 
     const response = await fetch(url, {
       method: 'GET',
       credentials: 'include'
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erreur API: ${response.status}`);
+    });    if (!response.ok) {
+      await handleApiError(response, "le téléchargement du fichier");
     }
 
-    return await response.blob();
+    // Ensure the response has content
+    const blob = await response.blob();
+    if (blob.size === 0) {
+      throw new Error("Le fichier téléchargé est vide");
+    }
+
+    return blob;
   } catch (error) {
     console.error("Erreur lors du téléchargement du document:", error);
     throw error;

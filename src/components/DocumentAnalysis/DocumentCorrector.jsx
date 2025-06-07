@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Download, RefreshCw, FilePlus, AlertCircle, FileText } from 'lucide-react';
+import { CheckCircle, Download, RefreshCw, FilePlus, AlertCircle, FileText, Info } from 'lucide-react';
 import { Button } from '../ui/button';
 import { correctDocument, downloadDocument } from '../../Services/documentAnalysisService';
 import { Progress } from '../ui/progress';
@@ -19,32 +19,73 @@ export default function DocumentCorrector({
   isLoading
 }) {
   const [showComparison, setShowComparison] = useState(true);
-  const [corrections, setCorrections] = useState([]);
-  useEffect(() => {
-    if (correctedDocument && correctedDocument.corrections_details) {
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [corrections, setCorrections] = useState([]);  useEffect(() => {
+    if (correctedDocument) {
+      let formattedCorrections = [];
+      
       // Transformer les détails de corrections en format compatible avec notre interface
-      const formattedCorrections = correctedDocument.corrections_details.map((detail, index) => {
-        // Analyser les corrections au format "Correction type: 'original' → 'corrected'"
-        const match = detail.match(/Correction (orthographique|grammaticale|juridique): ['"]([^'"]*)['"] → ['"]([^'"]*)['"]/);
-        const type = match ? 
-          match[1] === 'orthographique' ? 'spelling' : 
-          match[1] === 'grammaticale' ? 'grammar' : 'legal' 
-          : 'other';
-        
-        const original = match ? match[2] : '';
-        const corrected = match ? match[3] : '';
-        
-        return {
-          id: index,
-          type,
-          original,
-          corrected,
-          explanation: detail
-        };
-      });
+      if (correctedDocument.corrections_details && Array.isArray(correctedDocument.corrections_details)) {
+        // Le format attendu selon la documentation: "Correction orthographique: 'eror' → 'error'"
+        formattedCorrections = correctedDocument.corrections_details.map((detail, index) => {
+          let type = 'other';
+          let original = '';
+          let corrected = '';
+          
+          try {
+            // Essayer plusieurs formats de parsing pour garantir la compatibilité
+            
+            // Format principal: "Correction orthographique: 'eror' → 'error'"
+            const mainMatch = detail.match(/Correction (orthographique|grammaticale|juridique): ['"]([^'"]*)['"] → ['"]([^'"]*)['"]/);
+            
+            // Format alternatif: "Correction: 'eror' → 'error'"
+            const altMatch = detail.match(/Correction: ['"]([^'"]*)['"] → ['"]([^'"]*)['"]/);
+            
+            // Format de secours: rechercher simplement pour des apostrophes ou guillemets
+            const backupMatch = detail.match(/['"]([^'"]*)['"].*['"]([^'"]*)['"]/);
+            
+            if (mainMatch) {
+              type = mainMatch[1] === 'orthographique' ? 'spelling' : 
+                     mainMatch[1] === 'grammaticale' ? 'grammar' : 'legal';
+              original = mainMatch[2];
+              corrected = mainMatch[3];
+            } else if (altMatch) {
+              // Si type non spécifié, on essaie de le deviner en fonction du contenu
+              original = altMatch[1];
+              corrected = altMatch[2];
+              
+              // Tentative simple de détection du type d'erreur
+              if (original.length === corrected.length && original.toLowerCase() !== corrected.toLowerCase()) {
+                type = 'spelling'; // Probablement une erreur de majuscule ou caractère
+              } else if (Math.abs(original.length - corrected.length) <= 2) {
+                type = 'spelling'; // Probablement une faute d'orthographe
+              } else {
+                type = 'grammar'; // Probablement une erreur grammaticale
+              }
+            } else if (backupMatch) {
+              original = backupMatch[1];
+              corrected = backupMatch[2];
+              type = 'other';
+            }
+          } catch (error) {
+            console.warn("Impossible de parser le détail de correction:", detail, error);
+          }
+          
+          return {
+            id: index,
+            type,
+            original,
+            corrected,
+            explanation: detail,
+            parseFailed: !original && !corrected
+          };
+        }).filter(correction => !(correction.parseFailed && correction.type === 'other'));
+      } else {
+        console.warn("Aucun détail de correction ou format incorrect dans la réponse API", correctedDocument);
+      }
       
       // Ajouter également les recommandations légales comme des "corrections"
-      if (correctedDocument.legal_recommendations) {
+      if (correctedDocument.legal_recommendations && Array.isArray(correctedDocument.legal_recommendations)) {
         const legalSuggestions = correctedDocument.legal_recommendations.map((rec, index) => ({
           id: `legal-${index}`,
           type: 'legal',
@@ -57,69 +98,151 @@ export default function DocumentCorrector({
         formattedCorrections.push(...legalSuggestions);
       }
       
+      console.log('Corrections formatées:', formattedCorrections);
+      console.log('Nombre de corrections appliquées:', correctedDocument.corrections_applied || formattedCorrections.length);
       setCorrections(formattedCorrections);
     }
   }, [correctedDocument]);
-  // Lancer la correction du document
+    // Lancer la correction du document
   const handleCorrect = async () => {
-    if (!document || !document.id) {
-      onError(new Error("Document invalide ou ID manquant"));
+    if (!document) {
+      const error = new Error("Document non disponible");
+      setErrorMessage(error.message);
+      onError(error);
+      return;
+    }
+    
+    if (!document.id) {
+      const error = new Error("Document sans identifiant");
+      setErrorMessage(error.message);
+      onError(error);
       return;
     }
 
     setLoading(true);
-    
+    setErrorMessage(null); // Clear previous errors
+      
     try {
+      console.log("Demande de correction pour le document:", document);
       const result = await correctDocument(document.id);
+      
+      // Valider la réponse de l'API
+      if (!result) {
+        throw new Error("Réponse vide reçue de l'API");
+      }
+      
+      // Vérifier si on a les champs requis dans la réponse
+      if (!result.corrections_applied && result.corrections_applied !== 0) {
+        console.warn("Le nombre de corrections appliquées n'est pas défini dans la réponse");
+      }
+      
+      if (!result.corrections_details || !Array.isArray(result.corrections_details)) {
+        console.warn("Les détails des corrections sont manquants ou dans un format incorrect");
+      }
+      
       onCorrectionComplete(result);
     } catch (error) {
-      onError(error);
+      // Display more informative error to the user
+      console.error("Erreur de correction:", error);
+      
+      let errorMsg;
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      } else if (typeof error === 'object') {
+        errorMsg = error?.detail || JSON.stringify(error);
+      } else {
+        errorMsg = String(error);
+      }
+      
+      // Pour les erreurs 422, ajouter un message plus informatif
+      if (errorMsg.includes("422") || errorMsg.includes("Unprocessable Entity")) {
+        errorMsg += " (Les données envoyées sont incorrectes ou invalides)";
+      }
+      
+      setErrorMessage(errorMsg);
+      onError(new Error(`Impossible de corriger le document: ${errorMsg}`));
     } finally {
       setLoading(false);
     }
-  };// Télécharger le document corrigé
+  };
+  // Télécharger le document corrigé
   const handleDownload = async (corrected = true) => {
-    if (!document) return;
+    if (!document) {
+      setErrorMessage("Document non disponible pour le téléchargement");
+      return;
+    }
 
     setLoading(true);
-    
-    try {
-      // Utiliser soit le nom de fichier du document corrigé, soit celui de l'original
-      // Vérification approfondie pour s'assurer que les objets et leurs propriétés existent
+    setErrorMessage(null); // Clear previous errors
+      try {
+      // Selon l'API: pour un document original, utiliser document.filename
+      // Pour un document corrigé, utiliser correctedDocument.filename
       let filename = null;
+      let documentType = corrected ? "corrigé" : "original";
       
       if (corrected && correctedDocument) {
-        // Pour le document corrigé, utiliser la propriété filename ou créer un nom basé sur l'original
-        filename = correctedDocument.filename || 
-                  (correctedDocument.id && document && document.name ? 
-                    `corrected_${document.name}` : null);
+        // Pour le document corrigé, utiliser la propriété filename fournie par l'API
+        // Selon la documentation: "filename": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx_corrected.txt"
+        if (!correctedDocument.filename) {
+          console.error("Le document corrigé n'a pas de nom de fichier", correctedDocument);
+          throw new Error(`Nom de fichier non disponible pour le document ${documentType}`);
+        }
+        filename = correctedDocument.filename;
       } else if (document) {
-        // Pour le document original, essayer toutes les propriétés possibles
-        filename = document.name || document.filename || 
-                   (document.id ? `document_${document.id}.pdf` : null);
+        // Pour le document original, utiliser le filename original
+        filename = document.filename || document.name || 
+                  (document.id ? `document_${document.id}` : null);
       }
       
       if (!filename) {
-        throw new Error("Nom de fichier non disponible");
+        throw new Error(`Nom de fichier non disponible pour le document ${documentType}`);
       }
       
-      const blob = await downloadDocument(filename);
+      console.log(`Téléchargement du document ${documentType}: ${filename}`);
       
-      // Créer un lien et déclencher le téléchargement
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = filename;
-      
-      document.body.appendChild(a);
-      a.click();
-      
-      // Nettoyer
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      try {
+        const blob = await downloadDocument(filename);
+        
+        if (!blob || blob.size === 0) {
+          throw new Error(`Le fichier téléchargé est vide`);
+        }
+        
+        // Vérifier le type MIME pour s'assurer que c'est un fichier valide et non une réponse HTML d'erreur
+        const mimeType = blob.type;
+        if (mimeType === 'text/html' && !filename.endsWith('.html')) {
+          console.warn("Le serveur a renvoyé un contenu HTML alors qu'un autre type était attendu");
+        }
+          // Créer un lien et déclencher le téléchargement
+        const url = window.URL.createObjectURL(blob);
+        // Utiliser window.document pour éviter la confusion avec la variable document locale
+        const downloadLink = window.document.createElement('a');
+        downloadLink.style.display = 'none';
+        downloadLink.href = url;
+        downloadLink.download = filename.includes('/') ? filename.split('/').pop() : filename;
+        
+        window.document.body.appendChild(downloadLink);
+        downloadLink.click();
+        
+        // Nettoyer
+        window.URL.revokeObjectURL(url);
+        window.document.body.removeChild(downloadLink);
+      } catch (downloadError) {
+        throw new Error(`Erreur lors du téléchargement du fichier: ${downloadError.message}`);
+      }
     } catch (error) {
-      onError(error);
+      console.error("Erreur lors du téléchargement:", error);
+      
+      let errorMsg;
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      } else if (typeof error === 'object') {
+        errorMsg = error?.detail || JSON.stringify(error);
+      } else {
+        errorMsg = String(error);
+      }
+      
+      setErrorMessage(errorMsg);
+      onError(new Error(`Erreur lors du téléchargement: ${errorMsg}`));
     } finally {
       setLoading(false);
     }
@@ -149,7 +272,30 @@ export default function DocumentCorrector({
         <div className="text-sm text-gray-500">
           {document.name}
         </div>
-      </div>
+      </div>      {errorMessage && (
+        <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg mb-6">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2" />
+            <div>
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                Erreur lors de la correction
+              </h3>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                {errorMessage || "Une erreur est survenue lors de la correction du document."}
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="mt-3"
+                onClick={handleCorrect}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Réessayer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-4 py-8">
@@ -164,12 +310,16 @@ export default function DocumentCorrector({
             <div className="mr-4 bg-green-100 dark:bg-green-800 rounded-full p-3">
               <CheckCircle className="h-6 w-6 text-green-500 dark:text-green-400" />
             </div>
-            <div>
-              <h3 className="font-medium text-lg text-green-700 dark:text-green-400">
+            <div>              <h3 className="font-medium text-lg text-green-700 dark:text-green-400">
                 Correction terminée!
               </h3>
               <p className="text-green-600 dark:text-green-500">
-                {corrections.length} corrections ont été appliquées à votre document.
+                {typeof correctedDocument.corrections_applied === 'number' 
+                  ? `${correctedDocument.corrections_applied} corrections ont été appliquées à votre document.`
+                  : corrections.length > 0 
+                    ? `${corrections.length} corrections ont été appliquées à votre document.`
+                    : 'Votre document a été traité avec succès.'
+                }
               </p>
             </div>
           </div>
@@ -257,24 +407,44 @@ export default function DocumentCorrector({
               </div>
             </>
           )}
-        </div>
-      ) : noErrorsToFix ? (
+        </div>      ) : noErrorsToFix ? (
         <div className="text-center p-8 border rounded-lg">
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-500 mb-4">
             <CheckCircle className="h-8 w-8" />
           </div>
           <h3 className="text-lg font-medium text-green-700">Document déjà parfait!</h3>
           <p className="text-gray-500 mt-2 mb-6">
-            Aucune erreur n'a été détectée dans votre document. Il n'y a rien à corriger.
+            Aucune erreur n'a été détectée dans votre document. 
+            {analysis.overall_compliance_score !== undefined && (
+              <span className="block mt-2">
+                Score de conformité: <strong>{Math.round(analysis.overall_compliance_score * 100)}%</strong>
+              </span>
+            )}
           </p>
           
-          <Button 
-            variant="outline" 
-            onClick={() => handleDownload(false)}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Télécharger le document
-          </Button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => handleDownload(false)}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Télécharger le document
+            </Button>
+            
+            <Button
+              variant="ghost"
+              onClick={handleCorrect}
+              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Vérifier à nouveau
+            </Button>
+          </div>
+          
+          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 text-sm rounded-md flex items-center">
+            <Info className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span>Même si aucune erreur n'a été détectée, vous pouvez quand même demander une correction pour appliquer des améliorations mineures.</span>
+          </div>
         </div>
       ) : (
         <div className="space-y-6">

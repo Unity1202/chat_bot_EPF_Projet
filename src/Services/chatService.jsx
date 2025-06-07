@@ -43,14 +43,52 @@ export const sendQuery = async (query, conversationId = null, options = {}) => {
     
     // Fusionner les options par défaut avec les options fournies
     const mergedOptions = { ...defaultOptions, ...options };
-    
-    let url;
+      let url;
     let headers = {};
-    let body;
-    
-    // Si un ID de conversation est fourni, utiliser l'endpoint pour continuer la conversation
-    if (conversationId) {
-      url = `${API_URL}/continue/${conversationId}`;
+    let body;    // Déterminer l'endpoint selon la présence de fichiers
+    if (mergedOptions.files && mergedOptions.files.length > 0) {
+      console.log('Fichiers transmis au backend:', mergedOptions.files.map(file => ({
+        name: file.name,
+        type: file.type,
+        size: file.size
+      })));
+      // Utiliser l'endpoint query-with-file pour les requêtes avec fichiers
+      url = `${API_URL}/query-with-file`;
+      
+      // Préparer FormData pour multipart/form-data
+      const formData = new FormData();
+      
+      // Paramètres textuels
+      formData.append('query', query);
+      formData.append('use_rag', mergedOptions.use_rag.toString());
+      formData.append('max_sources', mergedOptions.max_sources.toString());
+      
+      // Ajouter l'ID de conversation si disponible
+      if (conversationId) {
+        formData.append('conversation_id', conversationId);
+      }
+      
+      // Ajouter les fichiers en vérifiant qu'ils sont valides
+      mergedOptions.files.forEach((file, index) => {
+        if (file instanceof File) {
+          console.log(`Ajout du fichier ${index} à FormData:`, file.name);
+          // Utiliser "file" comme nom de champ (singulier) pour correspondre à ce que le backend attend
+          formData.append('file', file);
+        } else {
+          console.error(`Le fichier à l'index ${index} n'est pas un objet File valide:`, file);
+        }
+      });
+      
+      body = formData;
+      // Ne pas définir Content-Type, le navigateur le fera automatiquement avec boundary
+    } else {
+      // Utiliser l'endpoint approprié selon la présence d'un ID de conversation
+      if (conversationId) {
+        url = `${API_URL}/continue/${conversationId}`;
+      } else {
+        url = `${API_URL}/query`;
+      }
+      
       headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -60,41 +98,7 @@ export const sendQuery = async (query, conversationId = null, options = {}) => {
         use_rag: mergedOptions.use_rag,
         max_sources: mergedOptions.max_sources
       });
-    } else {
-      // Déterminer l'endpoint selon la présence de fichiers
-      if (mergedOptions.files && mergedOptions.files.length > 0) {
-        // Utiliser l'endpoint file-chat pour les requêtes avec fichiers
-        url = 'http://localhost:8000/api/file-chat/query';
-        
-        // Préparer FormData pour multipart/form-data
-        const formData = new FormData();
-        formData.append('query', query);
-        formData.append('use_rag', mergedOptions.use_rag.toString());
-        formData.append('max_sources', mergedOptions.max_sources.toString());
-        
-        // Ajouter les fichiers
-        mergedOptions.files.forEach(file => {
-          formData.append('files', file);
-        });
-        
-        body = formData;
-        // Ne pas définir Content-Type, le navigateur le fera automatiquement avec boundary
-      } else {
-        // Utiliser l'endpoint standard pour les requêtes texte uniquement
-        url = `${API_URL}/query`;
-        headers = {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        };
-        body = JSON.stringify({ 
-          query,
-          use_rag: mergedOptions.use_rag,
-          max_sources: mergedOptions.max_sources
-        });
-      }
-    }
-
-    console.log(`Envoi de requête à ${url}:`, mergedOptions.files ? 'FormData avec fichiers' : JSON.parse(body));
+    }    console.log(`Envoi de requête à ${url}:`, mergedOptions.files ? 'FormData avec fichiers' : JSON.parse(body));
 
     const response = await fetch(url, {
       method: 'POST',
@@ -104,9 +108,19 @@ export const sendQuery = async (query, conversationId = null, options = {}) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Erreur API: ${response.status}`);
-    }    const data = await response.json();
+      try {
+        const errorData = await response.json();
+        console.error("Erreur API détaillée:", errorData);
+        // Formater l'erreur de manière lisible
+        const errorMessage = errorData.detail || 
+                            (typeof errorData === 'string' ? errorData : JSON.stringify(errorData)) || 
+                            `Erreur API: ${response.status}`;
+        throw new Error(errorMessage);
+      } catch (jsonError) {
+        // Si l'erreur n'est pas au format JSON
+        throw new Error(`Erreur API (${response.status}): ${response.statusText}`);
+      }
+    }const data = await response.json();
    // debugLog("Response from sendQuery", data);
    // diagnoseRAGData(data, "sendQuery Response");
     validateAPIResponse(data, "sendQuery");    // Normaliser la réponse pour correspondre au format attendu par le frontend

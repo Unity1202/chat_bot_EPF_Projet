@@ -1,4 +1,4 @@
-// composant principal de l'application qui définit la structure de base
+// composnt principal de l'application qui définit la structure de base
 // organise les composants majeurs : header, sidebar et zone de chat
 // utilise flexbox pour la mise en page responsive
 
@@ -119,13 +119,11 @@ const ChatContainer = ({ view }) => {
             <div className="flex justify-center items-center h-screen">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16698C]"></div>
               <p className="ml-3 text-lg">Chargement de la conversation...</p>
-            </div>          ) : (
-            <div className="flex flex-col">
+            </div>          ) : (            <div className="flex flex-col">
               <div className="flex-1">                {view === "document-analyzer" ? (
                   <div className="px-4 py-6 w-full overflow-x-auto">
                     <DocumentAnalyzer />
-                  </div>
-                ) : (
+                  </div>                ) : (
                   <AppChat 
                     conversationId={conversationId}
                     onConversationDeleted={handleConversationDeleted}
@@ -151,12 +149,10 @@ const AuthenticatedApp = () => {
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16698C]"></div>
       </div>
     );
-  }
-  return (
+  }  return (
     <Routes>
       <Route path="/" element={<ChatContainer />} />
-      <Route path="/chat/:conversationId" element={<ChatContainer />} />
-      <Route path="/document-analyzer" element={<ChatContainer view="document-analyzer" />} />
+      <Route path="/chat/:conversationId" element={<ChatContainer />} />      <Route path="/document-analyzer" element={<ChatContainer view="document-analyzer" />} />
       <Route path="/admin" element={<ProtectedAdminRoute><AdminView /></ProtectedAdminRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
