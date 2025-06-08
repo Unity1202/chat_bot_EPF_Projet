@@ -10,6 +10,7 @@ import AppChat from "./components/Chat/AppChat"
 import DocumentAnalyzer from "./components/DocumentAnalysis/DocumentAnalyzer"
 import AdminView from "./views/AdminView"
 import ProtectedAdminRoute from "./components/Admin/ProtectedAdminRoute"
+import ResetPasswordPage from "./components/Header/ResetPasswordPage"
 import { AuthProvider } from "./contexts/AuthContext"
 import { useAuth } from "./contexts/AuthContext";
 import { checkAuthentication } from "./Services/chatService";
@@ -154,6 +155,7 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<ChatContainer />} />
       <Route path="/chat/:conversationId" element={<ChatContainer />} />      <Route path="/document-analyzer" element={<ChatContainer view="document-analyzer" />} />
       <Route path="/admin" element={<ProtectedAdminRoute><AdminView /></ProtectedAdminRoute>} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

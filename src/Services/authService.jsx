@@ -110,3 +110,87 @@ export const logout = async () => {
   }
 };
 
+/**
+ * Demande l'envoi d'un email de réinitialisation de mot de passe
+ * @param {string} email - Email de l'utilisateur
+ * @returns {Promise<Object>} - Confirmation de l'envoi de l'email
+ */
+export const requestPasswordReset = async (email) => {
+  try {
+    const response = await fetch(`${API_URL}/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Erreur de demande de réinitialisation: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erreur lors de la demande de réinitialisation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Vérifie la validité d'un token de réinitialisation de mot de passe
+ * @param {string} token - Token de réinitialisation
+ * @returns {Promise<boolean>} - Indique si le token est valide
+ */
+export const verifyResetToken = async (token) => {
+  try {
+    const response = await fetch(`${API_URL}/verify-reset-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Erreur lors de la vérification du token:', error);
+    return false;
+  }
+};
+
+/**
+ * Réinitialise le mot de passe avec un token valide
+ * @param {string} token - Token de réinitialisation
+ * @param {string} newPassword - Nouveau mot de passe
+ * @returns {Promise<Object>} - Confirmation de la réinitialisation
+ */
+export const resetPassword = async (token, newPassword) => {
+  try {
+    const response = await fetch(`${API_URL}/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        token, 
+        new_password: newPassword 
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Erreur de réinitialisation: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erreur lors de la réinitialisation du mot de passe:', error);
+    throw error;
+  }
+};
+

@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import SignUpDialog from '../SignUpDialog';
+import ForgotPasswordRequestDialog from './ForgotPasswordRequestDialog';
 import { login as loginUser, signup } from '../../Services/authService';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from "../../lib/utils";
@@ -17,6 +18,7 @@ const UserLoginDialog = ({ isOpen, onClose }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   // Masquer le dialogue si isOpen est false
   if (!isOpen) return null;
@@ -109,6 +111,16 @@ const UserLoginDialog = ({ isOpen, onClose }) => {
             />
           </div>
           
+          <div className="flex justify-end mb-2">
+            <button
+              type="button"
+              className="text-[#15ACCD] hover:underline text-xs"
+              onClick={() => setShowForgotPassword(true)}
+            >
+              Mot de passe oublié ?
+            </button>
+          </div>
+          
           {error && (
             <div className="text-[#FFCC00] text-sm font-medium">
               {error}
@@ -145,6 +157,12 @@ const UserLoginDialog = ({ isOpen, onClose }) => {
           <span className="sr-only">Fermer</span>
         </button>
       </div>
+      
+      {/* Ajout du dialogue de mot de passe oublié */}
+      <ForgotPasswordRequestDialog
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+      />
     </>
   );
 };
