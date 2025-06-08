@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import LoginDialog from './LoginDialog';
+import UserLoginDialog from './UserLoginDialog';
 import LogoutMenu from './LogoutMenu';
 import { Avatar, AvatarImage, AvatarFallback } from "../../components/ui/avatar";
 import { User } from "lucide-react";
@@ -16,6 +16,9 @@ const UserAvatar = () => {
     // Redirection vers la page d'accueil après déconnexion
     navigate('/');
   };
+
+  // État local pour forcer le rendu direct de l'avatar
+  const [loginOpen, setLoginOpen] = React.useState(false);
 
   const getInitials = () => {
     if (!user) return 'U';
@@ -39,34 +42,46 @@ const UserAvatar = () => {
   const renderAvatar = () => {
     if (!isAuthenticated) {
       return (
-        <Avatar className="cursor-pointer">
-          <AvatarFallback className="bg-[#FFFFFF] text-[#16698C]">
-            <User className="h-6 w-6" />
+        <Avatar 
+          className="cursor-pointer h-10 w-10 min-w-[2.5rem] min-h-[2.5rem]"
+          onClick={() => setLoginOpen(true)}
+        >
+          <AvatarFallback className="bg-[#FFFFFF] text-[#16698C] flex items-center justify-center">
+            <User className="h-5 w-5" />
           </AvatarFallback>
         </Avatar>
       );
     }
-
+    
     return (
-      <Avatar className="cursor-pointer">
+      <Avatar className="cursor-pointer h-10 w-10 min-w-[2.5rem] min-h-[2.5rem]">
         {user?.avatar ? (
           <AvatarImage src={user.avatar} alt={user.username || 'avatar'} />
         ) : (
-          <AvatarFallback className="bg-[#15ACCD] text-[#FFFFFF]">
+          <AvatarFallback className="bg-[#15ACCD] text-[#FFFFFF] flex items-center justify-center">
             {getInitials()}
           </AvatarFallback>
         )}
       </Avatar>
     );
   };
-  return isAuthenticated ? (
-    <LogoutMenu onLogout={handleLogout} user={user}>
-      {renderAvatar()}
-    </LogoutMenu>
-  ) : (
-    <LoginDialog>
-      {renderAvatar()}
-    </LoginDialog>
+  // SOLUTION DIRECTE: toujours rendre l'avatar directement
+  return (
+    <div className="relative flex items-center z-50" style={{minWidth: '40px'}}>
+      {isAuthenticated ? (
+        <LogoutMenu onLogout={handleLogout} user={user}>
+          {renderAvatar()}
+        </LogoutMenu>
+      ) : (
+        <>
+          {/* Avatar toujours visible directement */}
+          {renderAvatar()}
+          
+          {/* Utilisation du dialog spécialisé pour l'avatar */}
+          <UserLoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+        </>
+      )}
+    </div>
   );
 };
 

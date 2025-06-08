@@ -41,6 +41,15 @@ export default function DocumentGeneratorDialog({
   const [includeHistory, setIncludeHistory] = useState(false);
   const [includeSources, setIncludeSources] = useState(true);
   
+  // Ensure dialog state is properly synchronized
+  React.useEffect(() => {
+    if (!open) {
+      // Reset state when dialog is closed
+      setError(null);
+      setSuccess(false);
+    }
+  }, [open]);
+  
   // Mettre à jour le titre lorsque conversationTitle change
   React.useEffect(() => {
     if (conversationTitle) {
@@ -103,8 +112,7 @@ export default function DocumentGeneratorDialog({
     onClose();
     return null;
   }
-  
-  return (
+    return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>

@@ -4,3 +4,13 @@ header {
   text-align: center;
   text-transform: uppercase;
 }
+
+/* Style spécifique pour garantir que l'avatar utilisateur est toujours visible dans le header */
+.header-avatar {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  min-width: 40px;
+  min-height: 40px;
+}

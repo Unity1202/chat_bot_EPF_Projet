@@ -29,27 +29,16 @@ export async function loginUser(email, password) {
     }
   
     return await response.json();
-  }
+}
   
-const LoginDialog = ({ children, open: externalOpen, onOpenChange: externalOnOpenChange }) => {
+const LoginDialog = ({ children }) => {
     const { login: loginContext } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [internalOpen, setInternalOpen] = useState(false);
-    
-    // Utiliser soit l'état externe, soit l'état interne
-    const open = externalOpen !== undefined ? externalOpen : internalOpen;
-    const setOpen = externalOnOpenChange || setInternalOpen;
-    
-    // Pour débogage - rendre visible dans la console quand ce composant s'active
-    React.useEffect(() => {
-        console.log("LoginDialog composant actif, état ouvert:", open);
-    }, [open]);
+    const [open, setOpen] = useState(false);
 
-
-    
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -68,7 +57,7 @@ const LoginDialog = ({ children, open: externalOpen, onOpenChange: externalOnOpe
         } finally {
           setLoading(false);
         }
-      };
+    };
 
     const handleSignUp = async (userData) => {
         setLoading(true);
@@ -94,18 +83,31 @@ const LoginDialog = ({ children, open: externalOpen, onOpenChange: externalOnOpe
 
     // Réinitialiser les champs quand la popup se ferme
     const handleOpenChange = (isOpen) => {
+        console.log("Dialog open state changed:", isOpen);
         setOpen(isOpen);
         if (!isOpen) {
             setEmail('');
             setPassword('');
             setError('');
         }
-    };    return (
+    };
+    
+    // Wrapper le children avec un onClick pour forcer l'ouverture
+    const triggerElement = React.cloneElement(
+        React.Children.only(children),
+        { 
+            onClick: () => {
+                console.log("Avatar clicked! Opening dialog...");
+                setOpen(true);
+            },
+            style: { cursor: 'pointer' }
+        }
+    );
+
+    return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogTrigger asChild>
-                {children}
-            </DialogTrigger>
-            <DialogContent className="bg-[#16698C] border-[#16698C] border-2 [&>button]:text-white z-50">
+            {triggerElement}
+            <DialogContent className="bg-[#16698C] border-[#16698C] border-2 [&>button]:text-white">
                 <DialogHeader>
                     <DialogTitle className="text-[#FFFFFF]">Connexion</DialogTitle>
                     <DialogDescription className="text-[#FFFFFF]/70">

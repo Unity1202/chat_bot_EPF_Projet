@@ -17,17 +17,73 @@ const Dialog = ({ children, open, onOpenChange }) => {
       };
     }
   }, [open]);
-  
-  if (!open) return null;
 
-  return React.Children.map(children, child =>
-    React.cloneElement(child, { onOpenChange })
+  // Approche plus simple : on divise les enfants en deux groupes
+  const childArray = React.Children.toArray(children);
+  if (childArray.length === 0) return null;
+
+  // Détecter si le premier enfant est un DialogTrigger (mode déclencheur)
+  const firstChild = childArray[0];
+  const isTrigger = React.isValidElement(firstChild) && firstChild.type && firstChild.type.displayName === "DialogTrigger";
+
+  if (isTrigger) {
+    // Mode déclencheur : premier enfant est le trigger, le reste le contenu
+    const [trigger, ...content] = childArray;
+    const renderedTrigger = React.isValidElement(trigger)
+      ? React.cloneElement(trigger, { onOpenChange })
+      : trigger;
+
+    return (
+      <>
+        {renderedTrigger}
+        {open && content.map((child, i) =>
+          React.isValidElement(child)
+            ? React.cloneElement(child, { onOpenChange })
+            : child
+        )}
+      </>
+    );
+  }
+
+  // Mode contrôlé : aucun trigger, on affiche tout le contenu uniquement si open === true
+  if (!open) return null;
+  return (
+    <>
+      {childArray.map((child, i) =>
+        React.isValidElement(child)
+          ? React.cloneElement(child, { onOpenChange })
+          : child
+      )}
+    </>
   );
 };
 
-const DialogTrigger = ({ children, onClick }) => {
+const DialogTrigger = ({ children, onClick, onOpenChange, asChild }) => {
+  const handleClick = (e) => {
+    // Ouvrir la boîte de dialogue quand on clique
+    if (onOpenChange) {
+      onOpenChange(true);
+    }
+    
+    // Appeler également onClick s'il existe
+    if (onClick) {
+      onClick(e);
+    }
+  };
+  
+  // Si asChild est true, préserver les propriétés de l'enfant
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children, {
+      onClick: handleClick
+    });
+  }
+  
+  // Sinon, créer un bouton standard
   return (
-    <button onClick={onClick}>
+    <button 
+      onClick={handleClick}
+      className="inline-flex items-center justify-center"
+    >
       {children}
     </button>
   );
@@ -37,7 +93,7 @@ const DialogOverlay = React.forwardRef(({ className, onClick, ...props }, ref) =
   <div
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80",
+      "fixed inset-0 z-[9998] bg-black/80",
       className
     )}
     onClick={onClick}
@@ -64,7 +120,7 @@ const DialogContent = React.forwardRef(({ className, children, onOpenChange, ...
         ref={ref}
         onClick={handleContentClick}
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
+          "fixed left-[50%] top-[50%] z-[9999] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
           className
         )}
         {...props}
