@@ -4,10 +4,11 @@ import { formatConversationDate } from '../../lib/dateUtils';
 import { highlightText } from '../../hooks/useSearch';
 import { categoryColors, categoryLabels } from '../../hooks/useFilter';
 import ConfirmationModal from '../ui/ConfirmationModal';
+// ScrollArea est gérée au niveau de Sidebar.jsx
 
 const ConversationItem = ({ id, title, preview, date, category, searchQuery = '', onSelect, onDelete }) => (
   <div 
-    className="group relative flex cursor-pointer items-center rounded-md p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+    className="group relative flex cursor-pointer items-center rounded-md p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground conversation-item-hover"
   >
     <div 
       className="flex-1 space-y-1"
@@ -78,12 +79,10 @@ const ConversationList = ({ conversations, searchQuery = '', onSelectConversatio
   const cancelDelete = () => {
     setModalOpen(false);
     setConversationToDelete(null);
-  };
-
-  return (
+  };  return (
     <>
-      <div className="flex flex-col h-full overflow-hidden">
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-sidebar-accent scrollbar-track-transparent px-2">
+      <div className="flex flex-col h-full">
+        <div className="px-2">
           {sortedConversations.length > 0 ? (
             <div className="space-y-1 py-2">
               {sortedConversations.map(conv => (

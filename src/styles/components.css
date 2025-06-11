@@ -14,3 +14,14 @@ header {
   min-width: 40px;
   min-height: 40px;
 }
+
+/* Styles pour la barre de défilement des conversations */
+.sidebar-conversations-container {
+  height: calc(100vh - 140px); /* Ajuster en fonction de la hauteur du header et du bouton nouvelle conversation */
+}
+
+/* Amélioration du style de défilement */
+.conversation-item-hover:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s ease;
+}

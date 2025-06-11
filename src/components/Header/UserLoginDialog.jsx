@@ -27,10 +27,9 @@ const UserLoginDialog = ({ isOpen, onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
-
-    try {      const userData = await loginUser(email, password);
-      loginContext(userData);
+    setError('');    try {
+      const userData = await loginUser(email, password);
+      await loginContext(userData);
       onClose();
     } catch (error) {
       setError(error.message || "Échec de la connexion. Veuillez vérifier vos identifiants.");
@@ -42,11 +41,9 @@ const UserLoginDialog = ({ isOpen, onClose }) => {
   // Gérer l'inscription
   const handleSignUp = async (userData) => {
     setLoading(true);
-    setError('');
-
-    try {
+    setError('');    try {
       const response = await signup(userData);
-      loginContext(response.user || { email: userData.email });
+      await loginContext(response.user || { email: userData.email });
       onClose();
       
       // Rechargement automatique de la page après une inscription réussie

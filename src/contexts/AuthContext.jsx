@@ -56,10 +56,27 @@ export const AuthProvider = ({ children }) => {
 
     fetchAuthStatus();
   }, []);
-
-  const login = (userData) => {
-    setUser(userData); // facultatif, selon l'usage dans le composant LoginDialog
-  };  const handleLogout = async () => {
+  const login = async (userData) => {
+    setUser(userData);
+    
+    // Vérifier si l'utilisateur est administrateur après la connexion
+    try {
+      const adminResponse = await fetch("http://localhost:8000/api/auth/check-admin", {
+        credentials: "include"
+      });
+      
+      if (adminResponse.ok) {
+        const adminData = await adminResponse.json();
+        setIsAdmin(adminData.is_admin === true);
+        console.log("Statut administrateur après connexion:", adminData.is_admin === true ? "Oui" : "Non");
+      } else {
+        setIsAdmin(false);
+      }
+    } catch (adminError) {
+      console.error("Erreur lors de la vérification des droits admin après connexion:", adminError);
+      setIsAdmin(false);
+    }
+  };const handleLogout = async () => {
     try {
       await apiLogout();
       setUser(null);

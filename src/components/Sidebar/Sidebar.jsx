@@ -146,14 +146,12 @@ export function Sidebar({ onConversationSelect, refreshTrigger = 0, activeConver
             </svg>
             <span className="font-medium text-sm">Analyse de Documents</span>
           </Link>
-        </div>
-        
-        <div className="flex-1 overflow-hidden group">
+        </div>        <div className="flex-1 overflow-hidden group sidebar-conversations-container">
           <div className="h-full">
             <ScrollArea 
               viewportClassName="h-full"
-              className="transition-opacity duration-300"
-              type="hover"
+              className="transition-opacity duration-300 h-full"
+              type="always"
             >
               {loading ? (
                 <div className="flex justify-center items-center p-8">
