@@ -92,16 +92,16 @@ const ChatContainer = ({ view }) => {
   
   // État pour stocker les informations de la conversation mise à jour
   const [updatedConversation, setUpdatedConversation] = useState(null);
-  
-  // Fonction pour mettre à jour la conversation en temps réel
-  const handleConversationUpdated = useCallback((convId, title) => {
+    // Fonction pour mettre à jour la conversation en temps réel
+  const handleConversationUpdated = useCallback((convId, title, isNewConversation = false) => {
     console.log(`Titre de conversation mis à jour: ${title} pour l'ID ${convId}`);
     
     // Stocker les informations de la conversation mise à jour
-    setUpdatedConversation({ id: convId, title: title });
+    setUpdatedConversation({ id: convId, title: title, isNew: isNewConversation });
     
-    // Également déclencher un refresh complet pour assurer la cohérence
-    setRefreshTrigger(prev => prev + 1);
+    // Déclencher un refresh complet pour assurer la cohérence
+    // Augmenter la valeur plus significativement si c'est une nouvelle conversation
+    setRefreshTrigger(prev => prev + (isNewConversation ? 10 : 1));
   }, []);
 
   return (

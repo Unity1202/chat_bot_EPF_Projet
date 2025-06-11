@@ -6,9 +6,9 @@ import { categoryColors, categoryLabels } from '../../hooks/useFilter';
 import ConfirmationModal from '../ui/ConfirmationModal';
 // ScrollArea est gérée au niveau de Sidebar.jsx
 
-const ConversationItem = ({ id, title, preview, date, category, searchQuery = '', onSelect, onDelete }) => (
+const ConversationItem = ({ id, title, preview, date, category, searchQuery = '', onSelect, onDelete, isNew = false, activeConversationId }) => (
   <div 
-    className="group relative flex cursor-pointer items-center rounded-md p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground conversation-item-hover"
+    className={`group relative flex cursor-pointer items-center rounded-md p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground conversation-item-hover ${isNew ? 'conversation-new' : ''} ${id === activeConversationId ? 'bg-sidebar-accent/20' : ''}`}
   >
     <div 
       className="flex-1 space-y-1"
@@ -52,10 +52,55 @@ const ConversationItem = ({ id, title, preview, date, category, searchQuery = ''
   </div>
 );
 
-const ConversationList = ({ conversations, searchQuery = '', onSelectConversation, onDeleteConversation }) => {
+const ConversationList = ({ conversations, searchQuery = '', onSelectConversation, onDeleteConversation, activeConversationId }) => {
   // Trier les conversations par date (la plus récente en premier)
   const [modalOpen, setModalOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState(null);
+  const [newConversations, setNewConversations] = useState({});
+    // Détection optimisée des nouvelles conversations pour un rendu plus fluide
+  React.useEffect(() => {
+    // Fonction pour marquer les nouvelles conversations
+    const markNewConversations = () => {
+      if (conversations.length === 0) return;
+      
+      // Utiliser une référence d'IDs précédemment vus
+      const newConvsMap = {...newConversations};
+      let hasChanges = false;
+      
+      // Identifier les nouvelles conversations qui viennent d'être ajoutées
+      conversations.forEach(conv => {
+        const now = new Date();
+        const convTime = new Date(conv.date);
+        const isRecent = (now - convTime) / 1000 < 3; // Réduit à 3 secondes
+        
+        // Si la conversation est récente et n'est pas déjà marquée comme nouvelle
+        if (isRecent && !newConvsMap[conv.id]) {
+          newConvsMap[conv.id] = true;
+          hasChanges = true;
+          
+          // Programmer la suppression du statut "nouveau" après un délai
+          setTimeout(() => {
+            setNewConversations(prev => {
+              const updated = {...prev};
+              delete updated[conv.id];
+              return updated;
+            });
+          }, 2000); // Réduit à 2 secondes pour une expérience plus fluide
+        }
+      });
+      
+      // Mise à jour optimisée, uniquement si nécessaire
+      if (hasChanges) {
+        setNewConversations(newConvsMap);
+      }
+    };
+    
+    // Application immédiate sans délai
+    markNewConversations();
+    
+    // Pas besoin de nettoyage car il n'y a pas de timer à nettoyer
+  }, [conversations, newConversations]);
+  
   const sortedConversations = [...conversations].sort((a, b) => {
     return new Date(b.date) - new Date(a.date);
   });
@@ -84,16 +129,17 @@ const ConversationList = ({ conversations, searchQuery = '', onSelectConversatio
       <div className="flex flex-col h-full">
         <div className="px-2">
           {sortedConversations.length > 0 ? (
-            <div className="space-y-1 py-2">
-              {sortedConversations.map(conv => (
-                <ConversationItem 
-                  key={conv.id} 
-                  {...conv} 
-                  searchQuery={searchQuery}
-                  onSelect={onSelectConversation}
-                  onDelete={handleDelete}
-                />
-              ))}
+            <div className="space-y-1 py-2">                {sortedConversations.map(conv => (
+                  <ConversationItem 
+                    key={conv.id} 
+                    {...conv} 
+                    searchQuery={searchQuery}
+                    onSelect={onSelectConversation}
+                    onDelete={handleDelete}
+                    isNew={Boolean(newConversations[conv.id])}
+                    activeConversationId={activeConversationId}
+                  />
+                ))}
             </div>
           ) : (
             <div className="text-center text-muted-foreground py-10">

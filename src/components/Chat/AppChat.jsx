@@ -130,16 +130,26 @@ useEffect(() => {
       }
 
       const response = await sendQuery(queryToSend, currentConversationId, options);
-      
-      // Vérifier si une nouvelle conversation a été créée
+        // Vérifier si une nouvelle conversation a été créée
       if (response.conversation_id) {
         const newConversationCreated = !currentConversationId && response.conversation_id;
         setCurrentConversationId(response.conversation_id);
-        
-        // Si une nouvelle conversation a été créée automatiquement, marquer pour naviguer vers elle
+          // Si une nouvelle conversation a été créée automatiquement, marquer pour naviguer vers elle
         if (newConversationCreated) {
           console.log(`Nouvelle conversation créée automatiquement avec ID: ${response.conversation_id}`);
           setShouldNavigateToNewConversation(response.conversation_id);
+          
+          // Notifier immédiatement le parent qu'une nouvelle conversation a été créée
+          if (onConversationUpdated) {
+            // Extraire un titre temporaire basé sur le message ou utiliser un par défaut
+            const userMessage = text.trim();
+            const tempTitle = userMessage && userMessage.length > 5 
+              ? (userMessage.length > 30 ? `${userMessage.substring(0, 30)}...` : userMessage)
+              : "Nouvelle conversation";
+            
+            console.log(`Nouvelle conversation créée: ID=${response.conversation_id}, Titre temporaire="${tempTitle}"`);
+            onConversationUpdated(response.conversation_id, tempTitle, true);
+          }
         }
       }
       
@@ -151,7 +161,7 @@ useEffect(() => {
           console.log(`Appel de onConversationUpdated avec: ID=${response.conversation_id}, Title=${response.title}`);
           onConversationUpdated(response.conversation_id, response.title);
         }
-      }      // Traitement amélioré de la réponse pour RAG avec support multi-format
+      }// Traitement amélioré de la réponse pour RAG avec support multi-format
       const botReply = {
         id: Date.now() + 1,
         text: response.answer,
