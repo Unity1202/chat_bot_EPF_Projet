@@ -43,6 +43,32 @@ export const login = async (email, password) => {
 };
 
 /**
+ * Rafraîchit le token d'authentification
+ * @returns {Promise<boolean>} - true si le rafraîchissement a réussi
+ */
+export const refreshToken = async () => {
+  try {
+    const response = await fetch(`${API_URL}/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`Échec du rafraîchissement du token: ${response.status}`);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Erreur lors du rafraîchissement du token:', error);
+    return false;
+  }
+};
+
+/**
  * Inscrit un nouvel utilisateur
  */
 export const signup = async (userData) => {

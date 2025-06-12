@@ -20,7 +20,7 @@ const ChatContainer = ({ view }) => {
   const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
     // Ajouter un écouteur d'événement pour la déconnexion
   useEffect(() => {
     const handleLogout = () => {
@@ -103,7 +103,9 @@ const ChatContainer = ({ view }) => {
     // Augmenter la valeur plus significativement si c'est une nouvelle conversation
     setRefreshTrigger(prev => prev + (isNewConversation ? 10 : 1));
   }, []);
-
+  // Show loading indicator for chat routes only
+  const showLoading = (isLoadingAuth || authLoading) && conversationId;
+  
   return (
     <>
       <Header />      <div className="flex flex-1 relative main-layout">
@@ -116,7 +118,7 @@ const ChatContainer = ({ view }) => {
           />
         </div>
         <main className="flex-1 min-w-0 main-content">
-          {isLoadingAuth && conversationId ? (
+          {showLoading ? (
             <div className="flex justify-center items-center h-screen">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16698C]"></div>
               <p className="ml-3 text-lg">Chargement de la conversation...</p>
@@ -142,15 +144,8 @@ const ChatContainer = ({ view }) => {
 
 // Composant AuthenticatedApp pour s'assurer que nous avons la bonne information d'authentification
 const AuthenticatedApp = () => {
-  const { loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#16698C]"></div>
-      </div>
-    );
-  }  return (
+  // No need to show loading spinner here as each route handles its own loading state
+  return (
     <Routes>
       <Route path="/" element={<ChatContainer />} />
       <Route path="/chat/:conversationId" element={<ChatContainer />} />      <Route path="/document-analyzer" element={<ChatContainer view="document-analyzer" />} />

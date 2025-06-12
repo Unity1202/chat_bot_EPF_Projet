@@ -19,6 +19,7 @@ export default function DocumentAnalysisResults({
   isLoading 
 }) {
   const [activeTab, setActiveTab] = useState("spelling");
+  const [hasRequested, setHasRequested] = useState(false);
 
   // Lancer l'analyse automatiquement si le document change et qu'on n'a pas encore de résultats
   useEffect(() => {
@@ -26,12 +27,12 @@ export default function DocumentAnalysisResults({
       handleAnalyze();
     }
   }, [document, analysis, isLoading]);
-
   // Lance l'analyse du document
   const handleAnalyze = async () => {
     if (!document) return;
 
     setLoading(true);
+    setHasRequested(true);
     
     try {
       const analysisResults = await analyzeDocument(document.id);
@@ -54,14 +55,13 @@ export default function DocumentAnalysisResults({
         </p>
       </div>
     );
-  }
-  // Si en cours d'analyse
-  if (isLoading) {
+  }  // Si en cours d'analyse
+  if (isLoading && hasRequested) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow document-analyzer-root">
         <h2 className="text-xl font-semibold mb-6">Analyse en cours...</h2>
         <div className="space-y-4">
-          <Progress value={45} className="h-2" />
+          <Progress indeterminate className="h-2" />
           <p className="text-center text-gray-500">
             L'analyse de votre document est en cours. Cela peut prendre quelques instants.
           </p>

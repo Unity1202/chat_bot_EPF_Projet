@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, X, AlertCircle, CheckCircle, FileText, File } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
-import { uploadDocument, analyzeDocument } from '../../Services/documentAnalysisService';
+import { uploadDocument } from '../../Services/documentAnalysisService';
 import { Progress } from '../ui/progress';
 
 /**
@@ -13,6 +14,7 @@ export default function DocumentUploader({ onDocumentUploaded, onError, setLoadi
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null); // 'success', 'error', null
+  const { attemptTokenRefresh } = useAuth();
   
   // Accepte uniquement les types de fichiers supportés
   const acceptedFileTypes = {
@@ -53,7 +55,6 @@ export default function DocumentUploader({ onDocumentUploaded, onError, setLoadi
     }, 100);
     return interval;
   };
-
   // Gestion de l'upload du fichier
   const handleUpload = async () => {
     if (!file) return;
@@ -67,12 +68,31 @@ export default function DocumentUploader({ onDocumentUploaded, onError, setLoadi
       const progressInterval = simulateUploadProgress();
       
       // Upload le fichier
-      const uploadResult = await uploadDocument(file);
+      let uploadResult;
+      try {
+        uploadResult = await uploadDocument(file);
+      } catch (uploadError) {
+        // Si l'erreur est liée à l'authentification, on essaie de rafraîchir le token
+        if (uploadError.message === "SESSION_REFRESH_REQUIRED") {
+          console.log("Tentative de rafraîchissement de session pendant l'upload");
+          const refreshSuccess = await attemptTokenRefresh();
+          
+          if (refreshSuccess) {
+            // Réessayer l'upload après le refresh du token
+            uploadResult = await uploadDocument(file);
+          } else {
+            throw new Error("Session expirée, veuillez vous reconnecter");
+          }
+        } else {
+          throw uploadError;
+        }
+      }
       
       // Arrête la simulation et met à 100%
       clearInterval(progressInterval);
       setUploadProgress(100);
-        // Déclenche l'analyse du document
+        
+      // Déclenche l'analyse du document
       const documentInfo = {
         id: uploadResult.document_id,
         filename: uploadResult.filename,

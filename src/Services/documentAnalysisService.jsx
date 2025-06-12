@@ -28,9 +28,15 @@ const handleApiError = async (response, operation) => {
         errorData.detail 
           ? `Ressource non trouvée: ${errorData.detail}` 
           : `Ressource non trouvée${statusText}`
-      );
-    } else if (response.status === 401) {
-      throw new Error("Session expirée, veuillez vous reconnecter");
+      );    } else if (response.status === 401) {
+      // Tentative de rafraîchir le token avant d'échouer
+      const { triggerAuthRefresh } = await import('../contexts/AuthContext');
+      try {
+        triggerAuthRefresh();
+        throw new Error("SESSION_REFRESH_REQUIRED");
+      } catch {
+        throw new Error("Session expirée, veuillez vous reconnecter");
+      }
     } else {
       throw new Error(
         errorData.detail 

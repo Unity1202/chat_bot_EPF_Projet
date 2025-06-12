@@ -5,6 +5,7 @@ import DocumentAnalysisResults from './DocumentAnalysisResults';
 import DocumentChat from './DocumentChat';
 import DocumentCorrector from './DocumentCorrector';
 import { AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import './DocumentAnalysisLayout.css';
 
 /**
@@ -12,6 +13,9 @@ import './DocumentAnalysisLayout.css';
  * Gère les 4 onglets et l'état global du document en cours d'analyse
  */
 export default function DocumentAnalyzer() {
+  // Authentication context
+  const auth = useAuth();
+  
   // État principal pour gérer le document et ses analyses
   const [documentState, setDocumentState] = useState({
     document: null,           // Info du document uploadé
@@ -28,6 +32,35 @@ export default function DocumentAnalyzer() {
     },
     error: null
   });
+  
+  // Reset loading states on component mount to handle page refreshes
+  useEffect(() => {
+    console.log('DocumentAnalyzer: Resetting loading states on mount');
+    setDocumentState(prev => ({
+      ...prev,
+      loading: {
+        upload: false,
+        analysis: false,
+        chat: false,
+        correction: false
+      }
+    }));
+    
+    // Clear any stale data in localStorage that might be causing issues
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.includes('upload') || key.includes('analysis') || key.includes('loading'))) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    keysToRemove.forEach(key => {
+      console.log(`Removing stale localStorage key: ${key}`);
+      localStorage.removeItem(key);
+    });
+    
+  }, []);
   // Compteurs d'erreurs pour les badges
   const errorCounts = {
     spelling: documentState.analysis?.spelling_errors?.length || 0,
@@ -76,22 +109,72 @@ export default function DocumentAnalyzer() {
       correctedDocument: correctedData
     }));
   };
-
   // Gestionnaire d'erreurs global
-  const handleError = (error, section) => {
+  const handleError = async (error, section) => {
     console.error(`Erreur dans la section ${section}:`, error);
     
-    setDocumentState(prev => ({
-      ...prev,
-      loading: {
-        ...prev.loading,
-        [section]: false
-      },
-      error: {
-        message: error.message || "Une erreur est survenue",
-        section: section
+    // Handle authentication errors
+    if (error.message === "SESSION_REFRESH_REQUIRED" || 
+        error.message.includes("Session expirée") ||
+        error.message.includes("401")) {
+      
+      try {
+        // Try to refresh the auth token
+        const refreshResult = await auth.attemptTokenRefresh();
+        if (refreshResult) {
+          console.log("Token refreshed successfully, operation can be retried");
+          setDocumentState(prev => ({
+            ...prev,
+            loading: {
+              ...prev.loading,
+              [section]: false
+            },
+            error: {
+              message: "Authentification rafraîchie, vous pouvez réessayer",
+              section: section
+            }
+          }));
+        } else {
+          setDocumentState(prev => ({
+            ...prev,
+            loading: {
+              ...prev.loading,
+              [section]: false
+            },
+            error: {
+              message: "Session expirée, veuillez vous reconnecter",
+              section: section
+            }
+          }));
+        }
+      } catch (refreshError) {
+        console.error("Failed to refresh authentication", refreshError);
+        setDocumentState(prev => ({
+          ...prev,
+          loading: {
+            ...prev.loading,
+            [section]: false
+          },
+          error: {
+            message: "Problème d'authentification, veuillez vous reconnecter",
+            section: section
+          }
+        }));
       }
-    }));
+    } else {
+      // Handle other errors
+      setDocumentState(prev => ({
+        ...prev,
+        loading: {
+          ...prev.loading,
+          [section]: false
+        },
+        error: {
+          message: error.message || "Une erreur est survenue",
+          section: section
+        }
+      }));
+    }
     
     // Effacer l'erreur après 5 secondes
     setTimeout(() => {
