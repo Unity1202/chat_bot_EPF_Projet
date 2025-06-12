@@ -170,15 +170,10 @@ useEffect(() => {
           ) : currentConversationId ? (
             currentConversationTitle || `Conversation #${currentConversationId.substring(0, 8)}...`
           ) : (
-            "Nouvelle conversation"
+            ""
           )}
         </h2>
-        <button
-          onClick={startNewConversation}
-          className="px-3 py-1 bg-[#16698C] text-white rounded-md hover:bg-[#15ACCD] text-sm"
-        >
-          Nouvelle conversation
-        </button>
+ 
       </div>
 
       <div className="flex-1 min-h-0">
