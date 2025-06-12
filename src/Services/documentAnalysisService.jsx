@@ -5,6 +5,25 @@
 // URLs de base pour les différents endpoints de l'API
 const BASE_URL = 'http://localhost:8000/api/file-analysis';
 
+// Map pour suivre les requêtes d'analyse en cours pour éviter les duplications
+const pendingAnalysisRequests = new Map();
+
+// Fonction utilitaire qui gère le rafraîchissement du token d'authentification
+const refreshAuthToken = async () => {
+  try {
+    const { triggerAuthRefresh } = await import('../contexts/AuthContext');
+    if (typeof triggerAuthRefresh === 'function') {
+      return await triggerAuthRefresh();
+    } else {
+      console.error("triggerAuthRefresh n'est pas une fonction");
+      return false;
+    }
+  } catch (error) {
+    console.error("Erreur lors de l'import de triggerAuthRefresh:", error);
+    return false;
+  }
+};
+
 /**
  * Traiter les erreurs d'API de manière cohérente
  * @param {Response} response - La réponse HTTP
@@ -29,13 +48,44 @@ const handleApiError = async (response, operation) => {
           ? `Ressource non trouvée: ${errorData.detail}` 
           : `Ressource non trouvée${statusText}`
       );    } else if (response.status === 401) {
+      console.log("Erreur d'authentification détectée dans handleApiError");
+      
       // Tentative de rafraîchir le token avant d'échouer
-      const { triggerAuthRefresh } = await import('../contexts/AuthContext');
       try {
-        triggerAuthRefresh();
-        throw new Error("SESSION_REFRESH_REQUIRED");
-      } catch {
-        throw new Error("Session expirée, veuillez vous reconnecter");
+        const refreshResult = await refreshAuthToken();
+        
+        console.log("Résultat du refresh de token:", refreshResult);
+        
+        // Attendre un court instant pour laisser le refresh se produire complètement
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Vérifier si l'utilisateur a été réauthentifié
+        const checkAuth = await fetch("http://localhost:8000/api/auth/check-auth", {
+          credentials: "include",
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        
+        if (checkAuth.ok) {
+          console.log("Authentification rafraîchie avec succès");
+          // Si l'authentification est réussie, renvoyer une erreur spéciale pour permettre une nouvelle tentative
+          throw new Error("SESSION_REFRESH_REQUIRED");
+        } else {
+          console.error("Échec du refresh d'authentification - checkAuth non OK");
+          // Si l'authentification a échoué même après la tentative de refresh
+          throw new Error("Session expirée, veuillez vous reconnecter");
+        }
+      } catch (err) {
+        if (err.message === "SESSION_REFRESH_REQUIRED") {
+          console.log("Signalement pour réessayer après refresh de session");
+          throw err;
+        } else {
+          console.error("Erreur lors du refresh d'authentification:", err);
+          throw new Error("Session expirée, veuillez vous reconnecter");
+        }
       }
     } else {
       throw new Error(
@@ -121,23 +171,93 @@ export const analyzeDocument = async (documentId) => {
     // Validate document ID
     if (!documentId) {
       throw new Error("ID du document non défini");
-    }    const response = await fetch(`${BASE_URL}/analyze`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ document_id: documentId.toString() })
-    });
-
-    if (!response.ok) {
-      await handleApiError(response, "l'analyse du document");
     }
-
-    const data = await response.json();
-    console.log("Résultats de l'analyse:", data);
-    return data;
+    
+    // Créer une clé unique qui combine l'ID du document et l'ID de session
+    // Cela évite les problèmes après un rechargement de page
+    const sessionId = sessionStorage.getItem('documentAnalysisSessionId') || 'default-session';
+    const requestKey = `${documentId}-${sessionId}`;
+    
+    // Vérifier si une requête est déjà en cours pour ce document dans cette session
+    if (pendingAnalysisRequests.has(requestKey)) {
+      console.log(`Requête d'analyse déjà en cours pour le document ${documentId} dans la session ${sessionId}, attente...`);
+      return await pendingAnalysisRequests.get(requestKey);
+    }
+    
+    // Créer une nouvelle promesse et l'enregistrer dans la map
+    const analysisPromise = (async () => {
+      try {
+        console.log(`Envoi de la requête d'analyse pour le document ${documentId} (session: ${sessionId})`);
+        
+        // Ajouter un timestamp pour éviter les problèmes de cache
+        const timestamp = new Date().getTime();
+        const url = `${BASE_URL}/analyze?_t=${timestamp}`;
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          },
+          body: JSON.stringify({ document_id: documentId.toString() })
+        });
+  
+        if (!response.ok) {
+          await handleApiError(response, "l'analyse du document");
+        }
+  
+        const data = await response.json();
+        console.log("Résultats de l'analyse:", data);
+        return data;
+      } catch (error) {
+        // Si l'erreur est liée à l'authentification qui vient d'être rafraîchie
+        if (error.message === "SESSION_REFRESH_REQUIRED") {
+          console.log("Réessai de l'analyse après rafraîchissement de session");
+          // Court délai pour s'assurer que la session est bien rafraîchie
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Nouvelle requête avec credentials frais
+          const newResponse = await fetch(`${BASE_URL}/analyze`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            },
+            body: JSON.stringify({ document_id: documentId.toString() })
+          });
+          
+          if (!newResponse.ok) {
+            throw new Error(`Échec de la nouvelle tentative après refresh: ${newResponse.status}`);
+          }
+          
+          const newData = await newResponse.json();
+          console.log("Résultats de l'analyse après réessai:", newData);
+          return newData;
+        }
+        
+        // Pour les autres erreurs, on les propage
+        throw error;
+      } finally {
+        // Supprimer la promesse de la map une fois terminée (réussie ou échouée)
+        // Attendre un peu avant de supprimer pour éviter des requêtes multiples rapprochées
+        setTimeout(() => {
+          pendingAnalysisRequests.delete(requestKey);
+          console.log(`Requête d'analyse supprimée de la map pour ${requestKey}`);
+        }, 1000);
+      }
+    })();
+    
+    // Enregistrer la promesse dans la map
+    pendingAnalysisRequests.set(requestKey, analysisPromise);
+    
+    // Attendre et retourner le résultat
+    return await analysisPromise;
   } catch (error) {
     console.error("Erreur lors de l'analyse du document:", error);
     throw error;

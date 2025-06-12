@@ -48,11 +48,28 @@ export const login = async (email, password) => {
  */
 export const refreshToken = async () => {
   try {
+    console.log("Tentative de rafraîchissement du token d'authentification");
+    
+    // Vérifier si on a un token d'authentification en cache
+    const cachedAuth = sessionStorage.getItem('auth_data');
+    let extraHeaders = {};
+    if (cachedAuth) {
+      try {
+        const parsedData = JSON.parse(cachedAuth);
+        if (parsedData && parsedData.id) {
+          extraHeaders['X-User-ID'] = parsedData.id; // Aide optionnelle pour le backend
+        }
+      } catch (e) {
+        console.error("Erreur lors du parsing des données d'authentification", e);
+      }
+    }
+    
     const response = await fetch(`${API_URL}/refresh`, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Accept': 'application/json',
+        ...extraHeaders
       },
     });
 
@@ -61,6 +78,7 @@ export const refreshToken = async () => {
       return false;
     }
 
+    console.log("Rafraîchissement du token réussi");
     return true;
   } catch (error) {
     console.error('Erreur lors du rafraîchissement du token:', error);

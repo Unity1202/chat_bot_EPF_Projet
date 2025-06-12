@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AlertCircle, CheckCircle, AlertTriangle, BookOpen } from 'lucide-react';
 import { Button } from '../ui/button';
 import { analyzeDocument } from '../../Services/documentAnalysisService';
@@ -20,17 +20,11 @@ export default function DocumentAnalysisResults({
 }) {
   const [activeTab, setActiveTab] = useState("spelling");
   const [hasRequested, setHasRequested] = useState(false);
-
-  // Lancer l'analyse automatiquement si le document change et qu'on n'a pas encore de résultats
-  useEffect(() => {
-    if (document && !analysis && !isLoading) {
-      handleAnalyze();
-    }
-  }, [document, analysis, isLoading]);
-  // Lance l'analyse du document
-  const handleAnalyze = async () => {
+    // Définir la fonction d'analyse en premier avec useCallback pour éviter les problèmes de dépendances circulaires
+  const handleAnalyze = useCallback(async () => {
     if (!document) return;
-
+    
+    console.log("Lancement de l'analyse document ID:", document.id);
     setLoading(true);
     setHasRequested(true);
     
@@ -42,7 +36,29 @@ export default function DocumentAnalysisResults({
     } finally {
       setLoading(false);
     }
-  };
+  }, [document, onAnalysisComplete, onError, setLoading]);
+
+  // Lancer l'analyse automatiquement si le document change et qu'on n'a pas encore de résultats
+  useEffect(() => {
+    let analyzeTimeout;
+    
+    // Vérifier si nous avons un document et si nous devons déclencher une analyse
+    if (document && !analysis && !isLoading && !hasRequested) {
+      console.log("Planification de l'analyse automatique pour le document:", document.id);
+      // Utiliser un timeout pour éviter les requêtes multiples rapprochées
+      analyzeTimeout = setTimeout(() => {
+        console.log("Déclenchement de l'analyse automatique");
+        handleAnalyze();
+      }, 300);
+    }
+    
+    return () => {
+      if (analyzeTimeout) {
+        console.log("Nettoyage du timeout d'analyse");
+        clearTimeout(analyzeTimeout);
+      }
+    };
+  }, [document, analysis, isLoading, hasRequested, handleAnalyze]);
 
   // Si pas de document, afficher un message
   if (!document) {

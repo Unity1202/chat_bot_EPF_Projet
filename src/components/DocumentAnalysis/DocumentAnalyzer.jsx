@@ -6,6 +6,7 @@ import DocumentChat from './DocumentChat';
 import DocumentCorrector from './DocumentCorrector';
 import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { checkAuthentication } from '../../Services/chatService';
 import './DocumentAnalysisLayout.css';
 
 /**
@@ -32,10 +33,11 @@ export default function DocumentAnalyzer() {
     },
     error: null
   });
-  
-  // Reset loading states on component mount to handle page refreshes
+    // Reset loading states on component mount to handle page refreshes
   useEffect(() => {
     console.log('DocumentAnalyzer: Resetting loading states on mount');
+    
+    // Réinitialisation immédiate des états de chargement
     setDocumentState(prev => ({
       ...prev,
       loading: {
@@ -43,7 +45,9 @@ export default function DocumentAnalyzer() {
         analysis: false,
         chat: false,
         correction: false
-      }
+      },
+      // Réinitialiser également les états qui pourraient causer des requêtes multiples
+      error: null
     }));
     
     // Clear any stale data in localStorage that might be causing issues
@@ -60,6 +64,39 @@ export default function DocumentAnalyzer() {
       localStorage.removeItem(key);
     });
     
+    // Stocker une session ID pour identifier les sessions et éviter les requêtes dupliquées
+    if (!sessionStorage.getItem('documentAnalysisSessionId')) {
+      sessionStorage.setItem('documentAnalysisSessionId', Date.now().toString());
+    }
+    
+    // Vérifie automatiquement l'état d'authentification au chargement
+    const checkAuth = async () => {
+      try {
+        const authCheck = await checkAuthentication();
+        console.log('État d\'authentification vérifié au montage:', authCheck);
+        if (!authCheck) {
+          // Attendre un peu et réessayer une fois avec un délai plus long
+          setTimeout(async () => {
+            try {
+              const retryCheck = await checkAuthentication();
+              console.log('Nouvelle tentative d\'authentification:', retryCheck);
+            } catch (retryError) {
+              console.error('Erreur lors de la seconde tentative d\'authentification:', retryError);
+            }
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification d\'authentification:', error);
+      }
+    };
+    
+    checkAuth();
+    
+    // Nettoyage lors du démontage du composant
+    return () => {
+      console.log('DocumentAnalyzer: Nettoyage lors du démontage');
+      // On peut nettoyer les variables de session si nécessaire
+    };
   }, []);
   // Compteurs d'erreurs pour les badges
   const errorCounts = {
